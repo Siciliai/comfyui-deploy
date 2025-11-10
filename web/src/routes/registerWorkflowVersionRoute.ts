@@ -8,7 +8,7 @@ import {
 import type { App } from "@/routes/app";
 import { authError } from "@/routes/authError";
 import { createNewWorkflowVersion } from "@/server/createNewWorkflow";
-import { getWorkflowVersions } from "@/server/crudWorkflow";
+import { getWorkflowVersions, getWorkflowVersionByNumber } from "@/server/crudWorkflow";
 import { z, createRoute } from "@hono/zod-openapi";
 import { createSelectSchema } from "drizzle-zod";
 import { and, eq, isNull } from "drizzle-orm";
@@ -122,6 +122,60 @@ const versionsRoute = createRoute({
                 },
             },
             description: "Error when retrieving workflow versions",
+        },
+    },
+});
+
+const specificVersionRoute = createRoute({
+    method: "get",
+    path: "/workflow/{workflow_id}/version/{version_number}",
+    tags: ["comfyui"],
+    summary: "Get specific workflow version by version number",
+    description:
+        "Get a specific version of a workflow by workflow_id and version number. Used by ComfyUI plugin to retrieve a specific version.",
+    request: {
+        params: z.object({
+            workflow_id: z.string().uuid(),
+            version_number: z.string().regex(/^\d+$/).transform(Number),
+        }),
+    },
+    responses: {
+        200: {
+            content: {
+                "application/json": {
+                    schema: z.object({
+                        id: z.string(),
+                        workflow_id: z.string(),
+                        version: z.number(),
+                        workflow: z.any(),
+                        workflow_api: z.any(),
+                        snapshot: z.any().nullable(),
+                        created_at: z.string(),
+                        updated_at: z.string(),
+                    }),
+                },
+            },
+            description: "Successfully retrieved workflow version",
+        },
+        404: {
+            content: {
+                "application/json": {
+                    schema: z.object({
+                        error: z.string(),
+                    }),
+                },
+            },
+            description: "Version not found",
+        },
+        500: {
+            content: {
+                "application/json": {
+                    schema: z.object({
+                        error: z.string(),
+                    }),
+                },
+            },
+            description: "Error when retrieving workflow version",
         },
     },
 });
@@ -255,6 +309,58 @@ export const registerWorkflowVersionRoute = (app: App) => {
 
     // Handle OPTIONS for CORS preflight
     app.options("/workflow/:workflow_id/versions", async (c) => {
+        return new Response(null, {
+            status: 204,
+            headers: corsHeaders,
+        });
+    });
+
+    // Register GET /workflow/{workflow_id}/version/{version_number} route (no permission check)
+    app.openapi(specificVersionRoute, async (c) => {
+        const { workflow_id, version_number } = c.req.valid("param");
+
+        try {
+            const workflowVersion = await getWorkflowVersionByNumber(
+                workflow_id,
+                version_number
+            );
+
+            if (!workflowVersion) {
+                return c.json(
+                    {
+                        error: `Version ${version_number} not found for workflow ${workflow_id}`,
+                    },
+                    {
+                        status: 404,
+                        statusText: "Not Found",
+                        headers: corsHeaders,
+                    }
+                );
+            }
+
+            return c.json(workflowVersion, {
+                status: 200,
+                headers: corsHeaders,
+            });
+        } catch (error: unknown) {
+            const errorMessage =
+                error instanceof Error ? error.message : "Unknown error";
+
+            return c.json(
+                {
+                    error: errorMessage,
+                },
+                {
+                    statusText: "Internal Server Error",
+                    status: 500,
+                    headers: corsHeaders,
+                }
+            );
+        }
+    });
+
+    // Handle OPTIONS for CORS preflight
+    app.options("/workflow/:workflow_id/version/:version_number", async (c) => {
         return new Response(null, {
             status: 204,
             headers: corsHeaders,

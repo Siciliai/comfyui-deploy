@@ -104,3 +104,16 @@ export async function getWorkflowVersions(
     },
   });
 }
+
+export async function getWorkflowVersionByNumber(
+  workflow_id: string,
+  version_number: number,
+) {
+  // Get a specific workflow version by workflow_id and version number (no permission check)
+  return db.query.workflowVersionTable.findFirst({
+    where: and(
+      eq(workflowVersionTable.workflow_id, workflow_id),
+      eq(workflowVersionTable.version, version_number)
+    ),
+  });
+}

@@ -45,6 +45,12 @@ import {
     stopWorkerAction,
     getWorkerStatusAction,
 } from "@/server/worker/workerServerActions";
+import {
+    cleanStaleJobsAction,
+    startStaleJobsCheckerAction,
+    stopStaleJobsCheckerAction,
+    getStaleJobsCheckerStatusAction,
+} from "@/server/queue/staleJobsServerActions";
 import { callServerPromise } from "@/components/callServerPromise";
 
 interface QueueStatus {
@@ -111,6 +117,12 @@ export function QueueMonitor() {
     const [workerStatus, setWorkerStatus] = useState<WorkerStatus | null>(null);
     const [statusDialogOpen, setStatusDialogOpen] = useState(false);
 
+    // Stale jobs checker state
+    const [cleaningStaleJobs, setCleaningStaleJobs] = useState(false);
+    const [staleJobsCheckerRunning, setStaleJobsCheckerRunning] = useState(false);
+    const [startingStaleChecker, setStartingStaleChecker] = useState(false);
+    const [stoppingStaleChecker, setStoppingStaleChecker] = useState(false);
+
     // 获取队列数据
     const fetchQueueData = async () => {
         try {
@@ -147,10 +159,21 @@ export function QueueMonitor() {
         }
     };
 
+    // 获取 Stale Jobs Checker 状态
+    const fetchStaleJobsCheckerStatus = async () => {
+        try {
+            const status = await callServerPromise(getStaleJobsCheckerStatusAction());
+            setStaleJobsCheckerRunning(status.isRunning);
+        } catch (error) {
+            console.error("Error fetching stale jobs checker status:", error);
+        }
+    };
+
     useEffect(() => {
         fetchQueueData();
         fetchDeployments();
         fetchWorkerStatus();
+        fetchStaleJobsCheckerStatus();
     }, []);
 
     // 自动刷新
@@ -160,6 +183,7 @@ export function QueueMonitor() {
         const interval = setInterval(() => {
             fetchQueueData();
             fetchWorkerStatus();
+            fetchStaleJobsCheckerStatus();
         }, 5000); // 每5秒刷新一次
 
         return () => clearInterval(interval);
@@ -272,6 +296,62 @@ export function QueueMonitor() {
             toast.error(error instanceof Error ? error.message : "停止 Worker 失败");
         } finally {
             setStoppingWorker(false);
+        }
+    };
+
+    // 手动清理 Stale Jobs
+    const handleCleanStaleJobs = async () => {
+        setCleaningStaleJobs(true);
+        try {
+            const result = await callServerPromise(cleanStaleJobsAction());
+            if (result) {
+                toast.success(result.message || "Stale jobs 清理完成");
+                // 刷新队列数据
+                fetchQueueData();
+            }
+        } catch (error) {
+            console.error("Error cleaning stale jobs:", error);
+            toast.error(error instanceof Error ? error.message : "清理 stale jobs 失败");
+        } finally {
+            setCleaningStaleJobs(false);
+        }
+    };
+
+    // 启动 Stale Jobs Checker
+    const handleStartStaleChecker = async () => {
+        setStartingStaleChecker(true);
+        try {
+            const result = await callServerPromise(startStaleJobsCheckerAction());
+            if (result.success) {
+                toast.success(result.message || "定时清理已启动");
+                await fetchStaleJobsCheckerStatus();
+            } else {
+                toast.warning(result.message || "定时清理已在运行");
+            }
+        } catch (error) {
+            console.error("Error starting stale checker:", error);
+            toast.error(error instanceof Error ? error.message : "启动定时清理失败");
+        } finally {
+            setStartingStaleChecker(false);
+        }
+    };
+
+    // 停止 Stale Jobs Checker
+    const handleStopStaleChecker = async () => {
+        setStoppingStaleChecker(true);
+        try {
+            const result = await callServerPromise(stopStaleJobsCheckerAction());
+            if (result.success) {
+                toast.success(result.message || "定时清理已停止");
+                await fetchStaleJobsCheckerStatus();
+            } else {
+                toast.warning(result.message || "定时清理未在运行");
+            }
+        } catch (error) {
+            console.error("Error stopping stale checker:", error);
+            toast.error(error instanceof Error ? error.message : "停止定时清理失败");
+        } finally {
+            setStoppingStaleChecker(false);
         }
     };
 
@@ -425,6 +505,17 @@ export function QueueMonitor() {
                                 </div>
                                 <p className="text-xs text-muted-foreground">{workerStatus.worker.message}</p>
                             </div>
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm font-medium">Stale Jobs 定时清理</span>
+                                    <Badge variant={staleJobsCheckerRunning ? "default" : "secondary"}>
+                                        {staleJobsCheckerRunning ? "运行中" : "未运行"}
+                                    </Badge>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                    自动清理超过5分钟的任务（每分钟检查）
+                                </p>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
@@ -438,7 +529,7 @@ export function QueueMonitor() {
                             <CardTitle>队列监控</CardTitle>
                             <CardDescription>查看和管理队列中的任务</CardDescription>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap">
                             <Button
                                 variant="outline"
                                 size="sm"
@@ -457,6 +548,35 @@ export function QueueMonitor() {
                                 <Square className={`h-4 w-4 mr-2 ${stoppingWorker ? "animate-spin" : ""}`} />
                                 {stoppingWorker ? "停止中..." : "停止 Worker"}
                             </Button>
+                            <div className="border-l border-gray-300 mx-1"></div>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleCleanStaleJobs}
+                                disabled={cleaningStaleJobs}
+                            >
+                                <AlertTriangle className={`h-4 w-4 mr-2 ${cleaningStaleJobs ? "animate-spin" : ""}`} />
+                                {cleaningStaleJobs ? "清理中..." : "清理 Stale Jobs"}
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={staleJobsCheckerRunning ? handleStopStaleChecker : handleStartStaleChecker}
+                                disabled={startingStaleChecker || stoppingStaleChecker}
+                            >
+                                {staleJobsCheckerRunning ? (
+                                    <>
+                                        <Square className={`h-4 w-4 mr-2 ${stoppingStaleChecker ? "animate-spin" : ""}`} />
+                                        {stoppingStaleChecker ? "停止中..." : "停止定时清理"}
+                                    </>
+                                ) : (
+                                    <>
+                                        <Play className={`h-4 w-4 mr-2 ${startingStaleChecker ? "animate-spin" : ""}`} />
+                                        {startingStaleChecker ? "启动中..." : "启动定时清理"}
+                                    </>
+                                )}
+                            </Button>
+                            <div className="border-l border-gray-300 mx-1"></div>
                             <Button
                                 variant="outline"
                                 size="sm"

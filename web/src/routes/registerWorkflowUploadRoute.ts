@@ -27,11 +27,47 @@ const route = createRoute({
         "application/json": {
           schema: z.object({
             workflow_id: z.string().optional(),
+            // Support both 'name' (from Python proxy) and 'workflow_name'
+            name: z.string().min(1).optional(),
             workflow_name: z.string().min(1).optional(),
-            workflow: workflowType,
-            workflow_api: workflowAPIType,
-            snapshot: snapshotType,
-          }),
+            // Support both 'workflow_json' (from Python proxy) and 'workflow'
+            workflow_json: z.union([
+              z.string().transform((str) => {
+                try {
+                  return JSON.parse(str);
+                } catch {
+                  return str;
+                }
+              }),
+              workflowType,
+            ]).optional(),
+            workflow: workflowType.optional(),
+            // Accept both string (JSON) and object for workflow_api
+            workflow_api: z.union([
+              z.string().transform((str) => {
+                try {
+                  return JSON.parse(str);
+                } catch {
+                  return str;
+                }
+              }),
+              workflowAPIType,
+            ]),
+            // Make snapshot optional as ComfyUI plugin may not send it
+            snapshot: snapshotType.optional(),
+            // Additional fields from Python proxy
+            machine_id: z.string().nullish(),  // Accept null, undefined, or string
+          }).refine(
+            (data) => data.name || data.workflow_name,
+            {
+              message: "Either 'name' or 'workflow_name' must be provided",
+            }
+          ).refine(
+            (data) => data.workflow || data.workflow_json,
+            {
+              message: "Either 'workflow' or 'workflow_json' must be provided",
+            }
+          ),
         },
       },
     },
@@ -66,18 +102,21 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Content-Type": "application/json",
 };
 
 export const registerWorkflowUploadRoute = (app: App) => {
   app.openapi(route, async (c) => {
-    const {
-      // user_id,
-      workflow,
-      workflow_api,
-      workflow_id: _workflow_id,
-      workflow_name,
-      snapshot,
-    } = c.req.valid("json");
+    const requestData = c.req.valid("json");
+
+    // Support both field name formats
+    const workflow = requestData.workflow || requestData.workflow_json;
+    const workflow_api = requestData.workflow_api;
+    const workflow_id_input = requestData.workflow_id;
+    const workflow_name = requestData.workflow_name || requestData.name;
+    const snapshot = requestData.snapshot;
+    const machine_id = requestData.machine_id;
+
     const { org_id, user_id } = c.get("apiKeyTokenData")!;
 
     if (!user_id)
@@ -91,7 +130,7 @@ export const registerWorkflowUploadRoute = (app: App) => {
         },
       );
 
-    let workflow_id = _workflow_id;
+    let workflow_id = workflow_id_input;
 
     let version = -1;
 
@@ -106,7 +145,7 @@ export const registerWorkflowUploadRoute = (app: App) => {
             workflowData: {
               workflow,
               workflow_api,
-              snapshot,
+              snapshot: snapshot || null,
             },
           });
 
@@ -145,7 +184,7 @@ export const registerWorkflowUploadRoute = (app: App) => {
           workflowData: {
             workflow,
             workflow_api,
-            snapshot,
+            snapshot: snapshot || null,
           },
         });
         version = _version;
@@ -188,7 +227,7 @@ export const registerWorkflowUploadRoute = (app: App) => {
     );
   });
 
-  app.route("/upload-workflow").options(async (c) => {
+  app.options("/workflow", async (c) => {
     return new Response(null, {
       status: 204,
       headers: corsHeaders,
