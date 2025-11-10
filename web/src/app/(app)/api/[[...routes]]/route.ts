@@ -11,9 +11,13 @@ import { registerWorkflowVersionRoute } from "@/routes/registerWorkflowVersionRo
 import { registerGetAuthResponse } from "@/routes/registerGetAuthResponse";
 import { registerGetWorkflowRoute } from "@/routes/registerGetWorkflow";
 import { registerQueueRoute, registerQueueStatusRoute } from "@/routes/registerQueueRoute";
+import { registerQueueManagementRoute } from "@/routes/registerQueueManagementRoute";
 import { cors } from "hono/cors";
+
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 5 minutes
+
+// 自动初始化已禁用 - Worker 现在只在手动点击 "启动 Worker" 按钮时初始化
 
 declare module "hono" {
   interface ContextVariableMap {
@@ -78,6 +82,7 @@ registerWorkflowVersionRoute(app);
 registerGetWorkflowRoute(app);
 registerQueueRoute(app);
 registerQueueStatusRoute(app);
+registerQueueManagementRoute(app);
 
 // The OpenAPI documentation will be available at /doc
 app.doc("/doc", {

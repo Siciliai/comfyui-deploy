@@ -1,22 +1,31 @@
-import { Worker, Job } from "bullmq";
+import { Worker } from "bullmq";
 import Redis from "ioredis";
-import { createRun } from "@/server/createRun";
-import { db } from "@/db/db";
-import {
-    deploymentsTable,
-    machinesTable,
-    machineGroupsTable,
-    machineGroupMembersTable,
-} from "@/db/schema";
-import { and, eq, inArray } from "drizzle-orm";
-import { selectMachine } from "./machine-selector";
-import {
-    incrementMachineQueue,
-    decrementMachineQueue,
-} from "@/server/machine/updateMachineStatus";
+import { processQueueJob } from "./queue-worker-core";
+
+// 启动日志
+console.log("=".repeat(60));
+console.log("🚀 Queue Worker Starting...");
+console.log("=".repeat(60));
+console.log(`📅 Start Time: ${new Date().toISOString()}`);
+console.log(`🔧 Redis URL: ${process.env.REDIS_URL || "redis://localhost:6379"}`);
+console.log(`⚙️  Worker Concurrency: ${process.env.WORKER_CONCURRENCY || "5"}`);
+console.log(`📊 Load Balancer Strategy: ${process.env.LOAD_BALANCER_STRATEGY || "least-load"}`);
 
 const redis = new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
     maxRetriesPerRequest: null,
+});
+
+// Redis 连接事件
+redis.on("connect", () => {
+    console.log("✅ Redis connected successfully");
+});
+
+redis.on("error", (err) => {
+    console.error("❌ Redis connection error:", err);
+});
+
+redis.on("ready", () => {
+    console.log("✅ Redis ready");
 });
 
 const loadBalancerStrategy =
@@ -25,95 +34,50 @@ const loadBalancerStrategy =
 
 const worker = new Worker(
     "workflow-run-queue",
-    async (job: Job) => {
-        const { deployment_id, inputs, origin, apiUser } = job.data;
-
-        console.log(`Processing job ${job.id} for deployment ${deployment_id}`);
-
-        // 1. 获取deployment信息
-        const deployment = await db.query.deploymentsTable.findFirst({
-            where: eq(deploymentsTable.id, deployment_id),
-            with: {
-                version: true,
-                machine: true,
-                machineGroup: {
-                    with: {
-                        members: {
-                            with: {
-                                machine: true,
-                            },
-                        },
-                    },
-                },
-            },
-        });
-
-        if (!deployment) {
-            throw new Error("Deployment not found");
-        }
-
-        // 2. 选择机器（支持机器组或单个机器）
-        let selectedMachine;
-
-        if (deployment.machine_group_id && deployment.machineGroup) {
-            // 从机器组中选择
-            const machines = deployment.machineGroup.members.map((m) => m.machine);
-            selectedMachine = await selectMachine(machines, loadBalancerStrategy);
-        } else if (deployment.machine_id && deployment.machine) {
-            // 直接使用指定的机器
-            selectedMachine = deployment.machine;
-        } else {
-            throw new Error("No machine or machine group specified");
-        }
-
-        if (!selectedMachine) {
-            throw new Error("No available machine found");
-        }
-
-        // 3. 检查机器是否可用
-        if (
-            selectedMachine.disabled ||
-            (selectedMachine.operational_status === "busy" &&
-                selectedMachine.current_queue_size >=
-                selectedMachine.allow_comfyui_queue_size)
-        ) {
-            // 如果不可用，延迟重试
-            throw new Error("Machine not available, will retry");
-        }
-
-        // 4. 更新机器状态（增加队列计数）
-        await incrementMachineQueue(selectedMachine.id);
-
+    async (job) => {
         try {
-            // 5. 执行任务（复用现有createRun函数）
-            // 注意：createRun只是启动任务，不等待ComfyUI执行完成
-            // ComfyUI会异步执行，并通过/api/update-run回调更新状态
-            const result = await createRun({
-                origin,
-                workflow_version_id: deployment.version,
-                machine_id: selectedMachine,
-                inputs,
-                runOrigin: "api",
-                apiUser,
-                queueJobId: job.id, // 传递 job_id 以便后续查询
+            return await processQueueJob({
+                job,
+                loadBalancerStrategy,
+                enableDetailedLogging: true,
             });
+        } catch (error: any) {
+            // 如果是因为 machine 不可用导致的错误，设置延迟重试
+            // 这样 worker 可以继续处理其他 machine 的任务
+            if (error?.needsDelayedRetry) {
+                const retryCount = (job.data.retryCount || 0) + 1;
+                const maxRetries = parseInt(process.env.MAX_QUEUE_RETRIES || "50");
 
-            if ("workflow_run_id" in result) {
-                console.log(`Job ${job.id} started successfully, workflow_run_id: ${result.workflow_run_id}`);
-            } else {
-                console.log(`Job ${job.id} started, but result format unexpected`);
+                if (retryCount > maxRetries) {
+                    console.error(`❌ [JOB ${job.id}] Machine "${error.machineName}" not available after ${maxRetries} retries`);
+                    console.error(`   Marking job as failed to prevent infinite retries`);
+                    throw new Error(`Machine "${error.machineName}" not available after ${maxRetries} retries`);
+                }
+
+                // 指数退避：随着重试次数增加，延迟时间也增加
+                let delayMs = 10000;
+                if (retryCount > 20) {
+                    delayMs = 60000;
+                } else if (retryCount > 10) {
+                    delayMs = 30000;
+                } else if (retryCount > 5) {
+                    delayMs = 20000;
+                }
+
+                console.log(`⏰ [JOB ${job.id}] Machine "${error.machineName}" not available, setting delayed retry #${retryCount}/${maxRetries} (${delayMs / 1000}s)`);
+                console.log(`   This job will have higher priority when retried (priority will be ${Math.max(1, 6 - retryCount)})`);
+                console.log(`   Worker will continue processing jobs for other machines`);
+
+                await job.updateData({
+                    ...job.data,
+                    retryCount: retryCount,
+                });
+
+                await job.moveToDelayed(Date.now() + delayMs, job.token);
+                throw error;
             }
-            // 任务已启动，但不等待完成
-            // 队列计数会在/api/update-run中当状态变为success/failed时减少
-            return result;
-        } catch (error) {
-            console.error(`Job ${job.id} failed to start:`, error);
-            // 如果启动失败，立即减少队列计数
-            await decrementMachineQueue(selectedMachine.id);
             throw error;
         }
-        // 注意：不在finally中减少队列计数，因为任务还在ComfyUI中执行
-        // 队列计数会在/api/update-run中当状态变为success/failed时减少
     },
     {
         connection: redis,
@@ -122,19 +86,47 @@ const worker = new Worker(
 );
 
 worker.on("completed", (job) => {
-    console.log(`Job ${job.id} completed`);
+    console.log("\n" + "=".repeat(60));
+    console.log(`✅ [JOB ${job.id}] Completed successfully`);
+    console.log(`   Completed at: ${new Date().toISOString()}`);
+    if (job.returnvalue && typeof job.returnvalue === "object" && "workflow_run_id" in job.returnvalue) {
+        console.log(`   Workflow Run ID: ${job.returnvalue.workflow_run_id}`);
+    }
+    console.log("=".repeat(60) + "\n");
 });
 
 worker.on("failed", (job, err) => {
+    console.log("\n" + "=".repeat(60));
     if (job) {
-        console.error(`Job ${job.id} failed:`, err);
+        console.error(`❌ [JOB ${job.id}] Failed`);
+        console.error(`   Failed at: ${new Date().toISOString()}`);
+        console.error(`   Error:`, err);
+        console.error(`   Attempts: ${job.attemptsMade}`);
+        if (job.failedReason) {
+            console.error(`   Reason: ${job.failedReason}`);
+        }
     } else {
-        console.error("Job failed (job info unavailable):", err);
+        console.error("❌ Job failed (job info unavailable)");
+        console.error(`   Failed at: ${new Date().toISOString()}`);
+        console.error(`   Error:`, err);
     }
+    console.log("=".repeat(60) + "\n");
 });
 
 worker.on("error", (err) => {
-    console.error("Worker error:", err);
+    console.error("\n" + "=".repeat(60));
+    console.error("❌ Worker error occurred");
+    console.error(`   Time: ${new Date().toISOString()}`);
+    console.error(`   Error:`, err);
+    console.log("=".repeat(60) + "\n");
+});
+
+worker.on("active", (job) => {
+    console.log(`🔄 [JOB ${job.id}] Job is now active (being processed)`);
+});
+
+worker.on("stalled", (jobId) => {
+    console.warn(`⚠️  [JOB ${jobId}] Job stalled (may be taking too long)`);
 });
 
 // 优雅关闭
@@ -152,5 +144,27 @@ process.on("SIGINT", async () => {
     process.exit(0);
 });
 
-console.log("Queue worker started");
+// 等待 worker 就绪
+worker.on("ready", () => {
+    console.log("=".repeat(60));
+    console.log("✅ Queue Worker is ready and listening for jobs");
+    console.log(`   Queue Name: workflow-run-queue`);
+    console.log(`   Concurrency: ${parseInt(process.env.WORKER_CONCURRENCY || "5")}`);
+    console.log(`   Load Balancer: ${loadBalancerStrategy}`);
+    console.log(`   Ready at: ${new Date().toISOString()}`);
+    console.log("=".repeat(60));
+    console.log("📝 Worker is now processing jobs...\n");
+});
+
+// 检查 Redis 连接
+redis.ping()
+    .then(() => {
+        console.log("✅ Redis ping successful");
+    })
+    .catch((err) => {
+        console.error("❌ Redis ping failed:", err);
+        console.error("   Please check if Redis is running and accessible");
+    });
+
+console.log("⏳ Waiting for worker to be ready...");
 

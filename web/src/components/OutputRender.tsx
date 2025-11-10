@@ -29,7 +29,12 @@ export async function OutputRender(props: {
       `outputs/runs/${props.run_id}/${props.filename}`,
     );
 
-    return <img className="max-w-[200px]" alt={props.filename} src={url} />;
+    return (
+      <div className="flex flex-col gap-2">
+        <img className="max-w-[200px]" alt={props.filename} src={url} />
+        <DownloadButton filename={props.filename} href={url} />
+      </div>
+    );
   } else {
     const url = await getFileDownloadUrl(
       `outputs/runs/${props.run_id}/${props.filename}`,

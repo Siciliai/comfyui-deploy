@@ -14,30 +14,22 @@
  * 2. 或者删除此文件，使用独立的 worker 进程
  */
 
+// 全局变量来跟踪 instrumentation 是否已执行
+declare global {
+    var instrumentationExecuted: boolean | undefined;
+    var instrumentationTimestamp: string | undefined;
+}
+
 export async function register() {
-    // 只在 Node.js 运行时运行（非 Edge Runtime）
-    if (process.env.NEXT_RUNTIME !== 'nodejs') {
-        return;
-    }
+    // 标记 instrumentation 已执行（但不执行任何初始化）
+    global.instrumentationExecuted = true;
+    global.instrumentationTimestamp = new Date().toISOString();
 
-    // 检查是否启用集成 worker（默认不启用，建议使用独立进程）
-    if (process.env.ENABLE_WORKER_IN_NEXTJS !== 'true') {
-        console.log('Worker integration disabled. Use ENABLE_WORKER_IN_NEXTJS=true to enable.');
-        return;
-    }
+    // 禁用自动初始化 - 现在只在手动点击 "启动 Worker" 按钮时初始化
+    console.log('[INSTRUMENTATION] register() called - Auto-initialization disabled');
+    console.log('[INSTRUMENTATION] Worker and Stale Run Checker will be initialized manually via UI button');
 
-    // Serverless 环境不支持长期运行的进程
-    if (process.env.VERCEL || process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME) {
-        console.log('Skipping worker in serverless environment');
-        return;
-    }
-
-    // 动态导入，避免在构建时执行
-    try {
-        const { startWorker } = await import('./src/worker/queue-worker-integrated');
-        startWorker();
-    } catch (error) {
-        console.error('Failed to start integrated worker:', error);
-    }
+    // 不再执行任何自动初始化逻辑
+    return;
 }
 

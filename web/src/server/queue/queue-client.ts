@@ -31,25 +31,37 @@ export interface QueueJobData {
         user_id: string;
         org_id?: string;
     };
+    retryCount?: number; // 重试次数，用于设置优先级
 }
 
 export async function addJobToQueue(data: QueueJobData) {
+    // 优先级系统：
+    // - 新任务（retryCount=0 或 undefined）: 优先级 10 (默认)
+    // - 重试任务（retryCount > 0）: 优先级 1-5 (数字越小优先级越高)
+    // 这样被延迟的任务在重新进入队列时会优先执行
+    const priority = data.retryCount ? Math.max(1, 6 - data.retryCount) : 10;
+
     return await workflowRunQueue.add("run-workflow", data, {
         jobId: `workflow-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+        priority: priority, // 设置优先级
     });
 }
 
 export async function getQueueStatus() {
     const waiting = await workflowRunQueue.getWaitingCount();
+    const prioritized = await workflowRunQueue.getPrioritizedCount();
     const active = await workflowRunQueue.getActiveCount();
     const completed = await workflowRunQueue.getCompletedCount();
     const failed = await workflowRunQueue.getFailedCount();
+    const delayed = await workflowRunQueue.getDelayedCount();
 
+    // 将 waiting 和 prioritized 合并，因为它们都是等待执行的任务
     return {
-        waiting,
+        waiting: waiting + prioritized,
         active,
         completed,
         failed,
+        delayed,
     };
 }
 
@@ -128,6 +140,157 @@ export async function getJobStatus(jobId: string) {
             queue_status: "error",
             message: error instanceof Error ? error.message : "Unknown error",
         };
+    }
+}
+
+/**
+ * 获取队列中的所有任务（按状态分类）
+ */
+export async function getQueueJobs() {
+    try {
+        const [waiting, prioritized, active, completed, failed, delayed] = await Promise.all([
+            workflowRunQueue.getWaiting(0, 100),
+            workflowRunQueue.getPrioritized(0, 100),
+            workflowRunQueue.getActive(0, 100),
+            workflowRunQueue.getCompleted(0, 100),
+            workflowRunQueue.getFailed(0, 100),
+            workflowRunQueue.getDelayed(0, 100),
+        ]);
+
+        // 合并 waiting 和 prioritized 任务
+        const allWaiting = [...waiting, ...prioritized];
+
+        const formatJob = async (job: any) => {
+            const state = await job.getState();
+            let workflow_id: string | undefined = undefined;
+
+            // 如果任务已完成且有 workflow_run_id，查询数据库获取 workflow_id
+            if (state === "completed" && job.returnvalue?.workflow_run_id) {
+                try {
+                    const { db } = await import("@/db/db");
+                    const { workflowRunsTable } = await import("@/db/schema");
+                    const { eq } = await import("drizzle-orm");
+
+                    const workflowRun = await db.query.workflowRunsTable.findFirst({
+                        where: eq(workflowRunsTable.id, job.returnvalue.workflow_run_id),
+                        columns: {
+                            workflow_id: true,
+                        },
+                    });
+
+                    if (workflowRun) {
+                        workflow_id = workflowRun.workflow_id;
+                    }
+                } catch (error) {
+                    console.error(`Error getting workflow_id for run ${job.returnvalue.workflow_run_id}:`, error);
+                }
+            }
+
+            return {
+                id: job.id,
+                name: job.name,
+                data: job.data,
+                state,
+                progress: job.progress,
+                timestamp: new Date(job.timestamp).toISOString(),
+                processedOn: job.processedOn ? new Date(job.processedOn).toISOString() : null,
+                finishedOn: job.finishedOn ? new Date(job.finishedOn).toISOString() : null,
+                failedReason: job.failedReason,
+                returnvalue: job.returnvalue,
+                workflow_id, // 添加 workflow_id 字段
+            };
+        };
+
+        return {
+            waiting: await Promise.all(allWaiting.map(formatJob)),
+            active: await Promise.all(active.map(formatJob)),
+            completed: await Promise.all(completed.map(formatJob)),
+            failed: await Promise.all(failed.map(formatJob)),
+            delayed: await Promise.all(delayed.map(formatJob)),
+        };
+    } catch (error) {
+        console.error("Error getting queue jobs:", error);
+        throw error;
+    }
+}
+
+/**
+ * 取消单个任务
+ */
+export async function removeJob(jobId: string) {
+    try {
+        const job = await workflowRunQueue.getJob(jobId);
+        if (!job) {
+            throw new Error("Job not found");
+        }
+
+        const state = await job.getState();
+
+        // 如果任务正在执行，需要先移除
+        if (state === "active") {
+            await job.remove();
+        } else {
+            await job.remove();
+        }
+
+        return { success: true, message: "Job removed successfully" };
+    } catch (error) {
+        console.error(`Error removing job ${jobId}:`, error);
+        throw error;
+    }
+}
+
+/**
+ * 清空队列（移除所有等待中的任务）
+ */
+export async function cleanQueue(status: "waiting" | "active" | "completed" | "failed" | "delayed" = "waiting") {
+    try {
+        const cleanedJobs = await workflowRunQueue.clean(0, 1000, status);
+        const cleaned = Array.isArray(cleanedJobs) ? cleanedJobs.length : cleanedJobs;
+
+        return { success: true, cleaned, message: `Cleaned ${cleaned} jobs from ${status} queue` };
+    } catch (error) {
+        console.error(`Error cleaning queue (${status}):`, error);
+        throw error;
+    }
+}
+
+/**
+ * 清空所有队列
+ */
+export async function cleanAllQueues() {
+    try {
+        const [waiting, active, completed, failed, delayed] = await Promise.all([
+            workflowRunQueue.clean(0, 1000, "waiting"),
+            workflowRunQueue.clean(0, 1000, "active"),
+            workflowRunQueue.clean(0, 1000, "completed"),
+            workflowRunQueue.clean(0, 1000, "failed"),
+            workflowRunQueue.clean(0, 1000, "delayed"),
+        ]);
+
+        const getCount = (result: any) => Array.isArray(result) ? result.length : result;
+        const waitingCount = getCount(waiting);
+        const activeCount = getCount(active);
+        const completedCount = getCount(completed);
+        const failedCount = getCount(failed);
+        const delayedCount = getCount(delayed);
+        const total = waitingCount + activeCount + completedCount + failedCount + delayedCount;
+
+        return {
+            success: true,
+            cleaned: total,
+            details: {
+                waiting: waitingCount,
+                active: activeCount,
+                completed: completedCount,
+                failed: failedCount,
+                delayed: delayedCount,
+            },
+            message: `Cleaned ${total} jobs from all queues`,
+        };
+    } catch (error) {
+        console.error("Error cleaning all queues:", error);
+        throw error;
     }
 }
 

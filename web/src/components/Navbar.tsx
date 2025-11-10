@@ -20,7 +20,7 @@ import {
   UserButton,
   useOrganization,
 } from "@clerk/nextjs";
-import { Github, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 import meta from "next-gen/config";
 import { useEffect, useState } from "react";
 import { useMediaQuery } from "usehooks-ts";
@@ -45,7 +45,7 @@ export function Navbar() {
             </SheetTrigger>
             <SheetContent side="left" className="flex flex-col gap-4">
               <SheetHeader>
-                <SheetTitle className="text-start">Comfy Deploy</SheetTitle>
+                <SheetTitle className="text-start">Leapfuture Comfy Deploy Management</SheetTitle>
               </SheetHeader>
               <div className="grid h-full grid-rows-[1fr_auto]">
                 <NavbarMenu
@@ -75,7 +75,7 @@ export function Navbar() {
           </Sheet>
         )}
         <a className="font-bold text-md md:text-lg hover:underline" href="/">
-          {meta.name}
+          Leapfuture Comfy Deploy Management
         </a>
         {isDesktop && (
           <OrganizationSwitcher
@@ -89,23 +89,7 @@ export function Navbar() {
       </div>
       <div className="flex flex-row items-center gap-2">
         {isDesktop && <NavbarMenu />}
-        <Button
-          asChild
-          variant="link"
-          className="rounded-full aspect-square p-2 mr-4"
-        >
-          <a href="/docs">Docs</a>
-        </Button>
         <UserButton />
-        <Button
-          asChild
-          variant="outline"
-          className="rounded-full aspect-square p-2"
-        >
-          <a target="_blank" href="https://github.com/BennyKok/comfyui-deploy" rel="noreferrer">
-            <Github />
-          </a>
-        </Button>
       </div>
     </>
   );

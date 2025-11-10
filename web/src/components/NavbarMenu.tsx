@@ -34,13 +34,13 @@ export function NavbarMenu({
       path: "/machines",
     },
     {
+      name: "Queue",
+      path: "/queue",
+    },
+    {
       name: "API Keys",
       path: "/api-keys",
     },
-    {
-      name: "Examples",
-      path: "/examples"
-    }
   ];
 
   return (
