@@ -1,3 +1,5 @@
+"use client";
+
 import { CodeBlock } from "@/components/CodeBlock";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,12 +10,24 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getInputsFromWorkflow } from "@/lib/getInputsFromWorkflow";
 import type { findAllDeployments } from "@/server/findAllRuns";
 import { DeploymentRow, SharePageDeploymentRow } from "./DeploymentRow";
+import { Copy, ExternalLink, Settings, Share2, Code, Pencil } from "lucide-react";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import React from "react";
+import { EditDeploymentDialog } from "./EditDeploymentDialog";
 
 const curlTemplate = `
 curl --request POST \
@@ -83,25 +97,143 @@ const clientTemplate_checkStatus = `
 const run = await client.getRun(run_id);
 `;
 
-export function DeploymentDisplay({
+function SharePageDeploymentButton({
   deployment,
   domain,
+  machines,
+  machineGroups,
 }: {
   deployment: Awaited<ReturnType<typeof findAllDeployments>>[0];
   domain: string;
+  machines: any;
+  machineGroups: any;
+}) {
+  const router = useRouter();
+  const shareUrl = `${domain}/share/${deployment.share_slug ?? deployment.id}`;
+  const [showEditDialog, setShowEditDialog] = React.useState(false);
+
+  const copyShareLink = () => {
+    navigator.clipboard.writeText(shareUrl);
+    toast.success("分享链接已复制");
+  };
+
+  const openSharePage = () => {
+    window.open(shareUrl, "_blank");
+  };
+
+  const openSettings = () => {
+    router.push(`/share/${deployment.share_slug ?? deployment.id}/settings`);
+  };
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="sm">
+            <Share2 size={16} />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={copyShareLink}>
+            <Copy size={14} className="mr-2" />
+            复制链接
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={openSharePage}>
+            <ExternalLink size={14} className="mr-2" />
+            查看分享页
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => setShowEditDialog(true)}>
+            <Settings size={14} className="mr-2" />
+            编辑部署
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={openSettings}>
+            <Pencil size={14} className="mr-2" />
+            共享设置
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <EditDeploymentDialog
+        deployment={deployment}
+        machines={machines}
+        machineGroups={machineGroups}
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+      />
+    </>
+  );
+}
+
+function DeploymentActionsButton({
+  deployment,
+  domain,
+  machines,
+  machineGroups,
+}: {
+  deployment: Awaited<ReturnType<typeof findAllDeployments>>[0];
+  domain: string;
+  machines: any;
+  machineGroups: any;
+}) {
+  const [showCodeDialog, setShowCodeDialog] = React.useState(false);
+  const [showEditDialog, setShowEditDialog] = React.useState(false);
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="sm">
+            <Settings size={16} />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => setShowCodeDialog(true)}>
+            <Code size={14} className="mr-2" />
+            查看代码
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setShowEditDialog(true)}>
+            <Pencil size={14} className="mr-2" />
+            编辑部署
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <DeploymentCodeDialog
+        deployment={deployment}
+        domain={domain}
+        open={showCodeDialog}
+        onOpenChange={setShowCodeDialog}
+      />
+
+      <EditDeploymentDialog
+        deployment={deployment}
+        machines={machines}
+        machineGroups={machineGroups}
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+      />
+    </>
+  );
+}
+
+function DeploymentCodeDialog({
+  deployment,
+  domain,
+  open,
+  onOpenChange,
+}: {
+  deployment: Awaited<ReturnType<typeof findAllDeployments>>[0];
+  domain: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }) {
   const workflowInput = getInputsFromWorkflow(deployment.version);
 
-  if (deployment.environment === "public-share") {
-    return <SharePageDeploymentRow deployment={deployment} />;
-  }
-
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="sm">
-          View Code
-        </Button>
+        <span />
       </DialogTrigger>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
@@ -225,4 +357,26 @@ function formatCode(
     .replace("<URL>", `${domain ?? "http://localhost:3000"}/api/run`)
     .replace("<ID>", deployment.id)
     .replace("<URLONLY>", domain ?? "http://localhost:3000");
+}
+
+export function DeploymentDisplay({
+  deployment,
+  domain,
+  machines,
+  machineGroups,
+}: {
+  deployment: Awaited<ReturnType<typeof findAllDeployments>>[0];
+  domain: string;
+  machines?: any;
+  machineGroups?: any;
+}) {
+  if (deployment.environment === "public-share") {
+    return <SharePageDeploymentButton deployment={deployment} domain={domain} machines={machines || []} machineGroups={machineGroups || []} />;
+  }
+
+  if (machines && machineGroups) {
+    return <DeploymentActionsButton deployment={deployment} domain={domain} machines={machines} machineGroups={machineGroups} />;
+  }
+
+  return <DeploymentActionsButton deployment={deployment} domain={domain} machines={[]} machineGroups={[]} />;
 }

@@ -29,12 +29,18 @@ export function EditDeploymentDialog({
   deployment,
   machines,
   machineGroups,
+  open: externalOpen,
+  onOpenChange: externalOnOpenChange,
 }: {
   deployment: Awaited<ReturnType<typeof findAllDeployments>>[0];
   machines: Awaited<ReturnType<typeof getMachines>>;
   machineGroups: Awaited<ReturnType<typeof getMachineGroups>>;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = externalOpen !== undefined ? externalOpen : internalOpen;
+  const setOpen = externalOnOpenChange || setInternalOpen;
   const [selectedMachine, setSelectedMachine] = useState<string>(
     deployment.machine_id || "",
   );
@@ -49,11 +55,6 @@ export function EditDeploymentDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="ghost" size="sm">
-          <MoreHorizontal className="h-4 w-4" />
-        </Button>
-      </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Edit Deployment</DialogTitle>

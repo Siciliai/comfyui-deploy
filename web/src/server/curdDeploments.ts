@@ -30,8 +30,8 @@ export async function createDeployments(
     throw new Error("Staging environment can only use machine_id, not machine_group_id");
   }
 
-  // 至少需要一个machine_id或machine_group_id
-  if (!machine_id && !machine_group_id) {
+  // 至少需要一个machine_id或machine_group_id（public-share除外）
+  if (environment !== "public-share" && !machine_id && !machine_group_id) {
     throw new Error("Either machine_id or machine_group_id must be provided");
   }
 
@@ -253,6 +253,32 @@ export async function findUserShareDeployment(share_id: string) {
         isValidUUID(share_id)
           ? eq(deploymentsTable.id, share_id)
           : eq(deploymentsTable.share_slug, share_id),
+        eq(deploymentsTable.environment, "public-share"),
+        orgId
+          ? eq(deploymentsTable.org_id, orgId)
+          : and(
+            eq(deploymentsTable.user_id, userId),
+            isNull(deploymentsTable.org_id),
+          ),
+      ),
+    );
+
+  if (!deployment) throw new Error("No deployment found");
+
+  return deployment;
+}
+
+export async function findUserShareDeploymentByWorkflowId(workflow_id: string) {
+  const { userId, orgId } = auth();
+
+  if (!userId) throw new Error("No user id");
+
+  const [deployment] = await db
+    .select()
+    .from(deploymentsTable)
+    .where(
+      and(
+        eq(deploymentsTable.workflow_id, workflow_id),
         eq(deploymentsTable.environment, "public-share"),
         orgId
           ? eq(deploymentsTable.org_id, orgId)

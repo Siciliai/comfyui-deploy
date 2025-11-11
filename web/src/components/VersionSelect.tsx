@@ -209,10 +209,17 @@ export function PublicRunOutputs(props: {
         console.log(res?.status);
         if (res) setStatus(res.status);
         if (res && res.status === "success") {
-          const imageURLs = res.outputs[0]?.data.images.map((item: { url: string; }) => {
-            return { url: item.url };
-          });
-          setImage(imageURLs);
+          // 安全检查：确保 outputs 和 images 存在
+          const images = res.outputs?.[0]?.data?.images;
+          if (images && Array.isArray(images)) {
+            const imageURLs = images.map((item: { url: string; }) => {
+              return { url: item.url };
+            });
+            setImage(imageURLs);
+          } else {
+            console.warn("No images found in outputs:", res.outputs);
+            setImage([]);
+          }
           setLoading(false);
           clearInterval(interval);
         }
@@ -533,47 +540,292 @@ export function CopyWorkflowVersion({
   const workflow_version = workflow?.versions.find(
     (x) => x.version === version,
   );
+  const [showDialog, setShowDialog] = useState(false);
+  const [dialogText, setDialogText] = useState("");
+  const [dialogTitle, setDialogTitle] = useState("");
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button className="gap-2" variant="outline">
-          Copy Workflow <Copy size={14} />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56">
-        <DropdownMenuItem
-          onClick={async () => {
-            if (!workflow) return;
+    <>
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent className="max-w-4xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>{dialogTitle}</DialogTitle>
+            <DialogDescription>
+              内容已显示在下方，您可以全选并复制（Ctrl+A, Ctrl+C）
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2">
+            <textarea
+              readOnly
+              value={dialogText}
+              className="w-full h-[60vh] p-4 font-mono text-sm bg-gray-50 dark:bg-gray-900 border rounded-md resize-none"
+              onClick={(e) => {
+                (e.target as HTMLTextAreaElement).select();
+              }}
+            />
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const textarea = document.querySelector(
+                    'textarea[readonly]',
+                  ) as HTMLTextAreaElement;
+                  if (textarea) {
+                    textarea.select();
+                    document.execCommand("copy");
+                    toast.success("已复制到剪贴板");
+                  }
+                }}
+              >
+                <Copy size={14} className="mr-2" />
+                复制
+              </Button>
+              <Button onClick={() => setShowDialog(false)}>关闭</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
-            // console.log(workflow_version?.workflow);
-
-            workflow_version?.workflow?.nodes.forEach((x: any) => {
-              if (x?.type === "ComfyDeploy") {
-                x.widgets_values[1] = workflow.id;
-                x.widgets_values[2] = workflow_version.version;
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button className="gap-2" variant="outline">
+            Copy Workflow <Copy size={14} />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-56">
+          <DropdownMenuItem
+            onClick={async () => {
+              if (!workflow) {
+                toast.error("Workflow not found");
+                return;
               }
-            });
 
-            navigator.clipboard.writeText(
-              JSON.stringify(workflow_version?.workflow),
-            );
-            toast("Copied to clipboard");
-          }}
-        >
-          Copy (JSON)
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={async () => {
-            navigator.clipboard.writeText(
-              JSON.stringify(workflow_version?.workflow_api),
-            );
-            toast("Copied to clipboard");
-          }}
-        >
-          Copy API (JSON)
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+              if (!workflow_version) {
+                toast.error("Workflow version not found");
+                return;
+              }
+
+              if (!workflow_version.workflow) {
+                toast.error("Workflow data is empty");
+                console.error("workflow_version.workflow is null or undefined:", workflow_version);
+                return;
+              }
+
+              // 创建副本以避免修改原始数据
+              const workflowCopy = JSON.parse(JSON.stringify(workflow_version.workflow));
+
+              // 更新 ComfyDeploy 节点
+              if (workflowCopy?.nodes) {
+                workflowCopy.nodes.forEach((x: any) => {
+                  if (x?.type === "ComfyDeploy") {
+                    x.widgets_values[1] = workflow.id;
+                    x.widgets_values[2] = workflow_version.version;
+                  }
+                });
+              }
+
+              const text = JSON.stringify(workflowCopy, null, 2);
+
+              console.log("Copying workflow, length:", text.length);
+              console.log("Workflow preview:", text.substring(0, 200));
+
+              if (!text || text === "null" || text === "undefined" || text.length === 0) {
+                toast.error("Workflow data is empty, cannot copy");
+                console.error("Text to copy is empty:", { text, workflow: workflow_version.workflow });
+                return;
+              }
+
+              // 使用更可靠的复制方法
+              const copyToClipboard = async (textToCopy: string) => {
+                // 确保文本是纯文本，移除任何特殊字符
+                const cleanText = textToCopy.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+                // 方法1: 尝试使用 Clipboard API
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                  try {
+                    // 使用 ClipboardItem 确保纯文本格式
+                    const clipboardItem = new ClipboardItem({
+                      'text/plain': new Blob([cleanText], { type: 'text/plain' })
+                    });
+                    await navigator.clipboard.write([clipboardItem]);
+                    console.log("Clipboard API copy succeeded with ClipboardItem");
+                    return true;
+                  } catch (err1) {
+                    try {
+                      // 如果 ClipboardItem 失败，尝试直接 writeText
+                      await navigator.clipboard.writeText(cleanText);
+                      console.log("Clipboard API copy succeeded with writeText");
+                      return true;
+                    } catch (err2) {
+                      console.warn("Clipboard API failed, trying fallback:", err2);
+                    }
+                  }
+                }
+
+                // 方法2: 降级方案 - 使用可见的 textarea（更可靠）
+                try {
+                  const textArea = document.createElement("textarea");
+                  textArea.value = cleanText;
+                  textArea.style.position = "fixed";
+                  textArea.style.top = "0";
+                  textArea.style.left = "0";
+                  textArea.style.width = "2em";
+                  textArea.style.height = "2em";
+                  textArea.style.padding = "0";
+                  textArea.style.border = "none";
+                  textArea.style.outline = "none";
+                  textArea.style.boxShadow = "none";
+                  textArea.style.background = "transparent";
+                  textArea.setAttribute("readonly", "");
+                  document.body.appendChild(textArea);
+
+                  textArea.focus();
+                  textArea.select();
+                  textArea.setSelectionRange(0, cleanText.length);
+
+                  const successful = document.execCommand("copy");
+                  document.body.removeChild(textArea);
+
+                  if (successful) {
+                    console.log("Fallback copy method succeeded");
+                    return true;
+                  } else {
+                    throw new Error("execCommand('copy') returned false");
+                  }
+                } catch (err) {
+                  console.error("Fallback copy method failed:", err);
+                  throw err;
+                }
+              };
+
+              try {
+                const success = await copyToClipboard(text);
+                if (success) {
+                  toast.success("已复制到剪贴板");
+                } else {
+                  throw new Error("复制失败");
+                }
+              } catch (error) {
+                console.error("Failed to copy:", error);
+                // 如果自动复制失败，显示对话框让用户手动复制
+                setDialogTitle("复制 Workflow (JSON)");
+                setDialogText(text);
+                setShowDialog(true);
+                toast.info("自动复制失败，请在弹出的对话框中手动复制");
+              }
+            }}
+          >
+            Copy (JSON)
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={async () => {
+              if (!workflow_version) {
+                toast.error("Workflow version not found");
+                return;
+              }
+
+              if (!workflow_version.workflow_api) {
+                toast.error("Workflow API data is empty");
+                console.error("workflow_version.workflow_api is null or undefined:", workflow_version);
+                return;
+              }
+
+              const text = JSON.stringify(workflow_version.workflow_api, null, 2);
+
+              console.log("Copying workflow API, length:", text.length);
+              console.log("Workflow API preview:", text.substring(0, 200));
+
+              if (!text || text === "null" || text === "undefined" || text.length === 0) {
+                toast.error("Workflow API data is empty, cannot copy");
+                console.error("Text to copy is empty:", { text, workflow_api: workflow_version.workflow_api });
+                return;
+              }
+
+              // 使用更可靠的复制方法
+              const copyToClipboard = async (textToCopy: string) => {
+                // 确保文本是纯文本，移除任何特殊字符
+                const cleanText = textToCopy.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+                // 方法1: 尝试使用 Clipboard API
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                  try {
+                    // 使用 ClipboardItem 确保纯文本格式
+                    const clipboardItem = new ClipboardItem({
+                      'text/plain': new Blob([cleanText], { type: 'text/plain' })
+                    });
+                    await navigator.clipboard.write([clipboardItem]);
+                    console.log("Clipboard API copy succeeded with ClipboardItem");
+                    return true;
+                  } catch (err1) {
+                    try {
+                      // 如果 ClipboardItem 失败，尝试直接 writeText
+                      await navigator.clipboard.writeText(cleanText);
+                      console.log("Clipboard API copy succeeded with writeText");
+                      return true;
+                    } catch (err2) {
+                      console.warn("Clipboard API failed, trying fallback:", err2);
+                    }
+                  }
+                }
+
+                // 方法2: 降级方案 - 使用可见的 textarea（更可靠）
+                try {
+                  const textArea = document.createElement("textarea");
+                  textArea.value = cleanText;
+                  textArea.style.position = "fixed";
+                  textArea.style.top = "0";
+                  textArea.style.left = "0";
+                  textArea.style.width = "2em";
+                  textArea.style.height = "2em";
+                  textArea.style.padding = "0";
+                  textArea.style.border = "none";
+                  textArea.style.outline = "none";
+                  textArea.style.boxShadow = "none";
+                  textArea.style.background = "transparent";
+                  textArea.setAttribute("readonly", "");
+                  document.body.appendChild(textArea);
+
+                  textArea.focus();
+                  textArea.select();
+                  textArea.setSelectionRange(0, cleanText.length);
+
+                  const successful = document.execCommand("copy");
+                  document.body.removeChild(textArea);
+
+                  if (successful) {
+                    console.log("Fallback copy method succeeded");
+                    return true;
+                  } else {
+                    throw new Error("execCommand('copy') returned false");
+                  }
+                } catch (err) {
+                  console.error("Fallback copy method failed:", err);
+                  throw err;
+                }
+              };
+
+              try {
+                const success = await copyToClipboard(text);
+                if (success) {
+                  toast.success("已复制到剪贴板");
+                } else {
+                  throw new Error("复制失败");
+                }
+              } catch (error) {
+                console.error("Failed to copy:", error);
+                // 如果自动复制失败，显示对话框让用户手动复制
+                setDialogTitle("复制 Workflow API (JSON)");
+                setDialogText(text);
+                setShowDialog(true);
+                toast.info("自动复制失败，请在弹出的对话框中手动复制");
+              }
+            }}
+          >
+            Copy API (JSON)
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </>
   );
 }
 

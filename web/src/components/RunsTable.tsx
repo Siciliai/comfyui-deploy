@@ -144,14 +144,12 @@ function DeploymentTableRow({
         {getRelativeTime(deployment.updated_at)}
       </TableCell>
       <TableCell>
-        <div className="flex items-center gap-2">
-          <DeploymentDisplay deployment={deployment} domain={domain} />
-          <EditDeploymentDialog
-            deployment={deployment}
-            machines={machines}
-            machineGroups={machineGroups}
-          />
-        </div>
+        <DeploymentDisplay 
+          deployment={deployment} 
+          domain={domain} 
+          machines={machines}
+          machineGroups={machineGroups}
+        />
       </TableCell>
     </TableRow>
   );
