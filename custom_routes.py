@@ -3583,7 +3583,9 @@ async def fs_stat(request):
             return web.json_response({"error": "path is required"}, status=400)
 
         # Basic safeguard: ensure it's a ComfyUI models path
-        if "/models/" not in file_path:
+        # Support both Windows (\models\) and Unix (/models/) path separators
+        normalized_path = file_path.replace("\\", "/")
+        if "/models/" not in normalized_path:
             return web.json_response({"error": "invalid path"}, status=400)
 
         st = os.stat(file_path)
@@ -3612,7 +3614,9 @@ async def upload_part_from_path(request):
             return web.json_response(
                 {"error": "filePath and uploadUrl are required"}, status=400
             )
-        if "/models/" not in file_path:
+        # Support both Windows (\models\) and Unix (/models/) path separators
+        normalized_path = file_path.replace("\\", "/")
+        if "/models/" not in normalized_path:
             return web.json_response({"error": "invalid filePath"}, status=400)
         if end <= start:
             return web.json_response({"error": "invalid byte range"}, status=400)

@@ -12,6 +12,7 @@ import { registerGetAuthResponse } from "@/routes/registerGetAuthResponse";
 import { registerGetWorkflowRoute } from "@/routes/registerGetWorkflow";
 import { registerQueueRoute, registerQueueStatusRoute } from "@/routes/registerQueueRoute";
 import { registerQueueManagementRoute } from "@/routes/registerQueueManagementRoute";
+import { registerVolumeRoute } from "@/routes/registerVolumeRoute";
 import { cors } from "hono/cors";
 
 export const dynamic = "force-dynamic";
@@ -53,6 +54,7 @@ async function checkAuth(c: Context, next: Next, headers?: HeadersInit) {
 app.use("/run", checkAuth);
 app.use("/upload-url", checkAuth);
 app.use("/queue/*", checkAuth);
+app.use("/volume/*", checkAuth);
 
 const corsHandler = cors({
   origin: "*",
@@ -66,6 +68,7 @@ const corsHandler = cors({
 // CORS Check
 app.use("/workflow", corsHandler, checkAuth);
 app.use("/workflow-version/*", corsHandler, checkAuth);
+app.use("/volume/*", corsHandler);
 
 // create run endpoint
 registerCreateRunRoute(app);
@@ -83,6 +86,7 @@ registerGetWorkflowRoute(app);
 registerQueueRoute(app);
 registerQueueStatusRoute(app);
 registerQueueManagementRoute(app);
+registerVolumeRoute(app);
 
 // The OpenAPI documentation will be available at /doc
 app.doc("/doc", {

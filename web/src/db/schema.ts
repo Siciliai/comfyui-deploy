@@ -411,9 +411,37 @@ export const authRequestsTable = dbSchema.table("auth_requests", {
   updated_at: timestamp("updated_at").defaultNow().notNull(),
 });
 
+export const volumeModelsTable = dbSchema.table("volume_models", {
+  id: uuid("id").primaryKey().defaultRandom().notNull(),
+  user_id: text("user_id")
+    .references(() => usersTable.id, {
+      onDelete: "cascade",
+    })
+    .notNull(),
+  org_id: text("org_id"),
+  filename: text("filename").notNull(),
+  folder_path: text("folder_path").notNull(), // e.g., "/checkpoints"
+  s3_object_key: text("s3_object_key").notNull(), // S3 key
+  file_size: integer("file_size"), // File size in bytes
+  content_type: text("content_type"), // e.g., "application/octet-stream"
+  source: text("source").notNull(), // e.g., "link", "upload"
+  download_link: text("download_link"), // Original download link if applicable
+  is_temporary_upload: boolean("is_temporary_upload").default(false),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const volumeModelsRelations = relations(volumeModelsTable, ({ one }) => ({
+  user: one(usersTable, {
+    fields: [volumeModelsTable.user_id],
+    references: [usersTable.id],
+  }),
+}));
+
 export type UserType = InferSelectModel<typeof usersTable>;
 export type WorkflowType = InferSelectModel<typeof workflowTable>;
 export type MachineType = InferSelectModel<typeof machinesTable>;
 export type MachineGroupType = InferSelectModel<typeof machineGroupsTable>;
 export type WorkflowVersionType = InferSelectModel<typeof workflowVersionTable>;
 export type DeploymentType = InferSelectModel<typeof deploymentsTable>;
+export type VolumeModelType = InferSelectModel<typeof volumeModelsTable>;

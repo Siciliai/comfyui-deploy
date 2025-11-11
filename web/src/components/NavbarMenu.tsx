@@ -34,6 +34,10 @@ export function NavbarMenu({
       path: "/machines",
     },
     {
+      name: "Models",
+      path: "/models",
+    },
+    {
       name: "Queue",
       path: "/queue",
     },

@@ -866,6 +866,7 @@ window.syncSelectedModels = async function () {
           downloadLink: `s3://${key}`,
           isTemporaryUpload: true,
           s3ObjectKey: key,
+          fileSize: size,
           api_url: apiUrl,
         }),
       });
