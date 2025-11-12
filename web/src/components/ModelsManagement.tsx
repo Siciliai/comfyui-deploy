@@ -3,13 +3,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
   Table,
   TableBody,
   TableCell,
@@ -124,37 +117,38 @@ export function ModelsManagement() {
 
   if (loading) {
     return (
-      <Card>
-        <CardContent className="py-8">
-          <div className="text-center text-muted-foreground">加载中...</div>
-        </CardContent>
-      </Card>
+      <div className="flex h-full border rounded-lg overflow-hidden bg-white">
+        <div className="flex-1 flex items-center justify-center py-8">
+          <div className="text-center text-gray-500">加载中...</div>
+        </div>
+      </div>
     );
   }
 
   if (models.length === 0) {
     return (
-      <Card>
-        <CardContent className="py-8">
-          <div className="text-center text-muted-foreground">
+      <div className="flex h-full border rounded-lg overflow-hidden bg-white">
+        <div className="flex-1 flex items-center justify-center py-8">
+          <div className="text-center text-gray-500">
             <FileIcon className="mx-auto h-12 w-12 mb-4" />
             <p>还没有上传任何模型</p>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
+    <div className="flex flex-col h-full border rounded-lg overflow-hidden bg-white">
+      {/* Header */}
+      <div className="p-4 border-b bg-gray-50">
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle>模型列表</CardTitle>
-            <CardDescription>
+            <h2 className="text-lg font-semibold">模型列表</h2>
+            <p className="text-sm text-gray-500">
               共 {models.length} 个模型
               {selectedModelIds.length > 0 && ` · 已选择 ${selectedModelIds.length} 个`}
-            </CardDescription>
+            </p>
           </div>
           <div className="flex gap-2">
             <Button asChild variant="outline">
@@ -175,8 +169,10 @@ export function ModelsManagement() {
             />
           </div>
         </div>
-      </CardHeader>
-      <CardContent>
+      </div>
+      
+      {/* Table */}
+      <div className="flex-1 overflow-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -215,7 +211,7 @@ export function ModelsManagement() {
                   />
                 </TableCell>
                 <TableCell className="font-medium">{model.filename}</TableCell>
-                <TableCell className="text-muted-foreground">
+                <TableCell className="text-gray-500">
                   {model.folder_path}
                 </TableCell>
                 <TableCell>{formatFileSize(model.file_size)}</TableCell>
@@ -245,8 +241,8 @@ export function ModelsManagement() {
             ))}
           </TableBody>
         </Table>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
