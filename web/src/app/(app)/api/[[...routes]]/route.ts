@@ -15,6 +15,7 @@ import { registerQueueManagementRoute } from "@/routes/registerQueueManagementRo
 import { registerVolumeRoute } from "@/routes/registerVolumeRoute";
 import { registerModelPushRoute } from "@/routes/registerModelPushRoute";
 import { registerFilesRoute } from "@/routes/registerFilesRoute";
+import { registerDeploymentsRoute } from "@/routes/registerDeploymentsRoute";
 import { cors } from "hono/cors";
 
 export const dynamic = "force-dynamic";
@@ -70,6 +71,8 @@ const corsHandler = cors({
 app.use("/workflow", corsHandler, checkAuth);
 app.use("/workflow-version/*", corsHandler, checkAuth);
 app.use("/files/*", corsHandler, checkAuth);
+app.use("/deployments", corsHandler, checkAuth);
+app.use("/deployments/*", corsHandler, checkAuth);
 
 // 排除 model push 状态更新接口（供 ComfyUI 机器调用）
 // 必须在 CORS 之后，但在其他认证之前
@@ -116,6 +119,7 @@ registerQueueManagementRoute(app);
 registerVolumeRoute(app);
 registerModelPushRoute(app);
 registerFilesRoute(app);
+registerDeploymentsRoute(app);
 
 // The OpenAPI documentation will be available at /doc
 app.doc("/doc", {
