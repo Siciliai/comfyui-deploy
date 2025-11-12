@@ -235,6 +235,7 @@ export const cloneMachine = withServerPromise(async (deployment_id: string) => {
   });
 
   if (!deployment) throw new Error("No deployment found");
+  if (!deployment.machine) throw new Error("Deployment must have a machine to clone");
   if (deployment.machine.type !== "comfy-deploy-serverless")
     throw new Error("Can only clone comfy-deploy-serverlesss");
 

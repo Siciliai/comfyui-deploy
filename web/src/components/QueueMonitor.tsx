@@ -163,7 +163,9 @@ export function QueueMonitor() {
     const fetchStaleJobsCheckerStatus = async () => {
         try {
             const status = await callServerPromise(getStaleJobsCheckerStatusAction());
-            setStaleJobsCheckerRunning(status.isRunning);
+            if (status) {
+                setStaleJobsCheckerRunning(status.isRunning);
+            }
         } catch (error) {
             console.error("Error fetching stale jobs checker status:", error);
         }
@@ -322,10 +324,10 @@ export function QueueMonitor() {
         setStartingStaleChecker(true);
         try {
             const result = await callServerPromise(startStaleJobsCheckerAction());
-            if (result.success) {
+            if (result && result.success) {
                 toast.success(result.message || "定时清理已启动");
                 await fetchStaleJobsCheckerStatus();
-            } else {
+            } else if (result) {
                 toast.warning(result.message || "定时清理已在运行");
             }
         } catch (error) {
@@ -341,10 +343,10 @@ export function QueueMonitor() {
         setStoppingStaleChecker(true);
         try {
             const result = await callServerPromise(stopStaleJobsCheckerAction());
-            if (result.success) {
+            if (result && result.success) {
                 toast.success(result.message || "定时清理已停止");
                 await fetchStaleJobsCheckerStatus();
-            } else {
+            } else if (result) {
                 toast.warning(result.message || "定时清理未在运行");
             }
         } catch (error) {

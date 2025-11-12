@@ -237,7 +237,11 @@ export function MachineGroupList({
                       ...selectedGroup,
                       members: [
                         ...selectedGroup.members,
-                        { machine_id: selectedMachineId, machine: addedMachine },
+                        { 
+                          machine_id: selectedMachineId, 
+                          group_id: selectedGroup.id,
+                          machine: addedMachine 
+                        },
                       ],
                     });
                   }

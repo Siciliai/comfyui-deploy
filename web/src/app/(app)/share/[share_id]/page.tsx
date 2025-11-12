@@ -90,11 +90,17 @@ export default async function Page({
 					<div>
 						{sharedDeployment?.description && sharedDeployment?.description}
 					</div>
-					<RunWorkflowInline
-						inputs={inputs}
-						machine_id={sharedDeployment.machine_id}
-						workflow_version_id={sharedDeployment.workflow_version_id}
-					/>
+					{sharedDeployment.machine_id ? (
+						<RunWorkflowInline
+							inputs={inputs}
+							machine_id={sharedDeployment.machine_id}
+							workflow_version_id={sharedDeployment.workflow_version_id}
+						/>
+					) : (
+						<div className="text-sm text-gray-500 mt-4">
+							无法运行：此部署未关联到任何机器
+						</div>
+					)}
 				</CardContent>
 			</Card>
 			<Card className="w-full h-fit mt-4">

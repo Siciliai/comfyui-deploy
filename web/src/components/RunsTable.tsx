@@ -18,6 +18,8 @@ import { EditDeploymentDialog } from "./EditDeploymentDialog";
 import { PaginationControl } from "./PaginationControl";
 import { RunDisplay } from "./RunDisplay";
 import { getRelativeTime } from "@/lib/getRelativeTime";
+import type { getMachines } from "@/server/curdMachine";
+import type { getMachineGroups } from "@/server/curdMachineGroup";
 
 const itemPerPage = 6;
 const pageParser = parseAsInteger.withDefault(1);

@@ -19,6 +19,6 @@ export function getOutputsFromWorkflow(
       }
       return undefined;
     })
-    .filter((item) => item !== undefined);
+    .filter((item): item is { class_type: string; output_id: string; type: string } => item !== undefined);
 }
 

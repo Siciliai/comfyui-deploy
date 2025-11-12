@@ -7,6 +7,7 @@ import { FileUploadDialog } from "./FileUploadDialog";
 import { Button } from "./ui/button";
 import { FolderPlus, Upload, User, Globe } from "lucide-react";
 import { toast } from "sonner";
+import { getOrCreateApiKey } from "@/app/(app)/files/actions";
 import {
   Dialog,
   DialogContent,
@@ -184,12 +185,18 @@ export function FilesManager() {
   useEffect(() => {
     const loadApiKey = async () => {
       try {
-        const { getOrCreateApiKey } = await import("@/app/(app)/files/actions");
         const key = await getOrCreateApiKey();
-        setApiKey(key);
+        if (key && typeof key === "string" && key.length > 0) {
+          setApiKey(key);
+          console.log("[FilesManager] API key loaded successfully");
+        } else {
+          console.error("[FilesManager] Failed to get API key: invalid value", key);
+          toast.error("加载API密钥失败：未获取到有效的密钥");
+        }
       } catch (error) {
-        console.error("Error loading API key:", error);
-        toast.error("加载API密钥失败");
+        console.error("[FilesManager] Error loading API key:", error);
+        const errorMessage = error instanceof Error ? error.message : "未知错误";
+        toast.error(`加载API密钥失败: ${errorMessage}`);
       }
     };
     loadApiKey();

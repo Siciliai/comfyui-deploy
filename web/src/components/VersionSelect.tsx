@@ -279,6 +279,21 @@ export function RunWorkflowButton({
     return workflowVersionInputsToZod(workflow_version);
   }, [version]);
 
+  // 处理 onValuesChange 的类型不匹配
+  const handleValuesChange = (newValues: Partial<Record<string, string | undefined>>) => {
+    setValues((prev) => {
+      const updated = { ...prev };
+      for (const [key, value] of Object.entries(newValues)) {
+        if (value !== undefined) {
+          updated[key] = value;
+        } else {
+          delete updated[key];
+        }
+      }
+      return updated;
+    });
+  };
+
   const runWorkflow = async () => {
     console.log(values);
 
@@ -332,7 +347,7 @@ export function RunWorkflowButton({
           <AutoForm
             formSchema={schema}
             values={values}
-            onValuesChange={setValues}
+            onValuesChange={handleValuesChange}
             onSubmit={runWorkflow}
             className="px-1"
           >
@@ -418,9 +433,8 @@ export function CreateDeploymentButton({
                 <Select
                   value={selectedGroup}
                   onValueChange={setSelectedGroup}
-                  className="mt-2"
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="mt-2">
                     <SelectValue placeholder="Select a machine group" />
                   </SelectTrigger>
                   <SelectContent>

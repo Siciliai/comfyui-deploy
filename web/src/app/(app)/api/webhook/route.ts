@@ -7,7 +7,12 @@ import { NextRequest, NextResponse } from "next/server";
  * 
  * 访问: POST /api/webhook
  * 或: GET /api/webhook?test=value
+ * 
+ * 注意：此端点完全公开，不需要任何认证
  */
+
+// 明确标记为公开路由，绕过所有认证
+export const runtime = "nodejs";
 export async function POST(request: NextRequest) {
     try {
         // 获取请求头

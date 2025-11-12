@@ -20,5 +20,5 @@ export function getInputsFromWorkflow(
       }
       return undefined;
     })
-    .filter((item) => item !== undefined);
+    .filter((item): item is { class_type: string; input_id: string; default_value: string } => item !== undefined);
 }

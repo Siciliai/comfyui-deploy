@@ -77,22 +77,23 @@ export function EditDeploymentDialog({
               <span>Use Single Machine</span>
             </label>
             {!useGroup && (
-              <Select
-                value={selectedMachine}
-                onValueChange={setSelectedMachine}
-                className="mt-2"
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a machine" />
-                </SelectTrigger>
-                <SelectContent>
-                  {machines?.map((m) => (
-                    <SelectItem key={m.id} value={m.id ?? ""}>
-                      {m.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="mt-2">
+                <Select
+                  value={selectedMachine}
+                  onValueChange={setSelectedMachine}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a machine" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {machines?.map((m) => (
+                      <SelectItem key={m.id} value={m.id ?? ""}>
+                        {m.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             )}
           </div>
           {canUseGroup && machineGroups && machineGroups.length > 0 && (
@@ -109,22 +110,23 @@ export function EditDeploymentDialog({
                 <span>Use Machine Group</span>
               </label>
               {useGroup && (
-                <Select
-                  value={selectedGroup}
-                  onValueChange={setSelectedGroup}
-                  className="mt-2"
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a machine group" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {machineGroups.map((g) => (
-                      <SelectItem key={g.id} value={g.id}>
-                        {g.name} ({g.members.length} machines)
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="mt-2">
+                  <Select
+                    value={selectedGroup}
+                    onValueChange={setSelectedGroup}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a machine group" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {machineGroups.map((g) => (
+                        <SelectItem key={g.id} value={g.id}>
+                          {g.name} ({g.members.length} machines)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               )}
             </div>
           )}

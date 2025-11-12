@@ -32,6 +32,21 @@ export function RunWorkflowInline({
     return plainInputsToZod(inputs);
   }, [inputs]);
 
+  // 处理 onValuesChange 的类型不匹配
+  const handleValuesChange = (newValues: Partial<Record<string, string | undefined>>) => {
+    setValues((prev) => {
+      const updated = { ...prev };
+      for (const [key, value] of Object.entries(newValues)) {
+        if (value !== undefined) {
+          updated[key] = value;
+        } else {
+          delete updated[key];
+        }
+      }
+      return updated;
+    });
+  };
+
   const {
     setRunId,
     loading,
@@ -82,7 +97,7 @@ export function RunWorkflowInline({
         <AutoForm
           formSchema={schema}
           values={values}
-          onValuesChange={setValues}
+          onValuesChange={handleValuesChange}
           onSubmit={runWorkflow}
           className="px-1"
         >

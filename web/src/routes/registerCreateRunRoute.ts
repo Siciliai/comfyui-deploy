@@ -78,10 +78,15 @@ export const registerCreateRunRoute = (app: App) => {
 
       if (!deploymentData) throw new Error("Deployment not found");
 
+      // 检查是否有 machine_id，如果没有则抛出错误（因为 createRun 需要 machine）
+      if (!deploymentData.machine_id) {
+        throw new Error("Deployment must have a machine_id to create a run. Machine group deployments are not supported for API runs.");
+      }
+
       const run_id = await createRun({
         origin,
         workflow_version_id: deploymentData.version,
-        machine_id: deploymentData.machine,
+        machine_id: deploymentData.machine_id,
         inputs,
         runOrigin: "api",
         apiUser: apiKeyTokenData,

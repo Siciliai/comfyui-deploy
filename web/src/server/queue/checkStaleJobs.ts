@@ -110,7 +110,7 @@ export async function checkAndCleanStaleJobs(): Promise<{
                         if (workflowRun?.machine) {
                             machineId = workflowRun.machine.id;
                             machineName = workflowRun.machine.name;
-                            machineUrl = workflowRun.machine.comfyui_url;
+                            machineUrl = workflowRun.machine.endpoint;
                         }
                     }
                 }
@@ -141,11 +141,10 @@ export async function checkAndCleanStaleJobs(): Promise<{
                             .update(workflowRunsTable)
                             .set({
                                 status: "failed",
-                                error_message: `Job exceeded timeout (${Math.floor(runningTime / 1000)}s). Forcefully terminated.`,
                                 ended_at: new Date(),
                             })
                             .where(eq(workflowRunsTable.id, workflowRunId));
-                        console.log(`   ✅ Updated workflow run ${workflowRunId} status to failed`);
+                        console.log(`   ✅ Updated workflow run ${workflowRunId} status to failed (timeout: ${Math.floor(runningTime / 1000)}s)`);
                     } catch (error) {
                         console.error(`   ❌ Failed to update workflow run:`, error);
                     }

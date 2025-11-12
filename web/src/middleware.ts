@@ -15,6 +15,11 @@ export default authMiddleware({
     const url = new URL(req.url);
     const pathname = url.pathname;
 
+    // 明确允许 webhook 端点，完全绕过认证
+    if (pathname === "/api/webhook" || pathname.startsWith("/api/webhook")) {
+      return; // 直接返回，不进行任何认证检查
+    }
+
     if (
       !auth.userId &&
       !auth.isPublicRoute

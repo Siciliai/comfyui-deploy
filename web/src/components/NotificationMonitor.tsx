@@ -129,10 +129,10 @@ export function NotificationMonitor() {
         setStartingWorker(true);
         try {
             const result = await callServerPromise(startNotificationWorkerAction());
-            if (result.success) {
+            if (result && result.success) {
                 toast.success(result.message || "Notification Worker 启动成功");
                 await fetchWorkerStatus();
-            } else {
+            } else if (result) {
                 toast.error(result.message || "启动 Notification Worker 失败");
             }
         } catch (error) {
@@ -152,10 +152,10 @@ export function NotificationMonitor() {
         setStoppingWorker(true);
         try {
             const result = await callServerPromise(stopNotificationWorkerAction(true));
-            if (result.success) {
+            if (result && result.success) {
                 toast.success(result.message || "Notification Worker 已停止");
                 await fetchWorkerStatus();
-            } else {
+            } else if (result) {
                 toast.error(result.message || "停止 Notification Worker 失败");
             }
         } catch (error) {
@@ -175,10 +175,10 @@ export function NotificationMonitor() {
         setCleaning(status);
         try {
             const result = await callServerPromise(cleanNotificationQueue(status));
-            if (result.success) {
+            if (result && result.success) {
                 toast.success(result.message || `已清理 ${result.cleaned} 个通知`);
                 await fetchNotificationData();
-            } else {
+            } else if (result) {
                 toast.error(result.message || "清理失败");
             }
         } catch (error) {

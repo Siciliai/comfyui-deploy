@@ -28,7 +28,9 @@ import { toast } from "sonner";
 import { getMachines } from "@/server/curdMachine";
 import { getMachineGroups } from "@/server/curdMachineGroup";
 import { pushModelsToMachines } from "@/app/(app)/models/push/actions";
-import type { MachineType, MachineGroupType } from "@/db/schema";
+import type { MachineType } from "@/db/schema";
+
+type MachineGroupWithMembers = Awaited<ReturnType<typeof getMachineGroups>>[0];
 
 interface ModelPushDialogProps {
   selectedModelIds: string[];
@@ -44,7 +46,7 @@ export function ModelPushDialog({
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [machines, setMachines] = useState<MachineType[]>([]);
-  const [machineGroups, setMachineGroups] = useState<MachineGroupType[]>([]);
+  const [machineGroups, setMachineGroups] = useState<MachineGroupWithMembers[]>([]);
   const [selectedMachineIds, setSelectedMachineIds] = useState<string[]>([]);
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
   const [targetType, setTargetType] = useState<"machines" | "groups">("machines");
