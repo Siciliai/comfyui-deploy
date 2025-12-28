@@ -89,8 +89,8 @@ export async function addJobToQueueAction(deploymentId: string, inputs?: Record<
         }
     }
 
-    // 获取 origin（需要从环境变量或配置中获取）
-    const origin = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    // 获取 origin（从环境变量 API_URL 获取）
+    const origin = process.env.API_URL || "http://localhost:3000";
 
     const job = await addJobToQueue({
         deployment_id: deploymentId,
