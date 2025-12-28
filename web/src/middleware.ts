@@ -9,6 +9,7 @@ const publicRoutes = [
   "/api/auth",
   "/api/webhook",
   "/api/update-run",
+  "/api/file-upload",
   "/api/machine-built",
   "/docs",
   "/share",
@@ -42,11 +43,12 @@ export async function middleware(request: NextRequest) {
 
   // API 路由特殊处理
   if (pathname.startsWith("/api/")) {
-    // 允许公开的 API 路由
+    // 允许公开的 API 路由（ComfyUI 回调端点不需要认证）
     if (
       pathname.startsWith("/api/auth") ||
       pathname.startsWith("/api/webhook") ||
       pathname === "/api/update-run" ||
+      pathname === "/api/file-upload" ||
       pathname === "/api/machine-built"
     ) {
       return NextResponse.next();

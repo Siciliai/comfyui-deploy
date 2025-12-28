@@ -91,10 +91,8 @@ export const registerQueueRoute = (app: App) => {
             );
         }
 
-        const proto = c.req.headers.get("x-forwarded-proto") || "http";
-        const host =
-            c.req.headers.get("x-forwarded-host") || c.req.headers.get("host");
-        const origin = `${proto}://${host}`;
+        // 使用 API_URL 环境变量作为回调地址
+        const origin = process.env.API_URL || "http://localhost:3000";
 
         // 加入队列
         const job = await addJobToQueue({
