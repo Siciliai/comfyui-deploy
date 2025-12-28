@@ -3,7 +3,7 @@
 import { getQueueJobs, getQueueStatus, removeJob, cleanQueue, cleanAllQueues, addJobToQueue } from "./queue-client";
 import { db } from "@/db/db";
 import { deploymentsTable } from "@/db/schema";
-import { auth } from "@clerk/nextjs";
+import { auth } from "@/lib/auth";
 import { eq, and, isNull } from "drizzle-orm";
 import "server-only";
 
@@ -11,7 +11,7 @@ import "server-only";
  * 获取队列状态和任务列表（Server Action）
  */
 export async function getQueueData() {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) throw new Error("Unauthorized");
 
     const status = await getQueueStatus();
@@ -27,7 +27,7 @@ export async function getQueueData() {
  * 取消任务（Server Action）
  */
 export async function removeQueueJob(jobId: string) {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) throw new Error("Unauthorized");
 
     return await removeJob(jobId);
@@ -37,7 +37,7 @@ export async function removeQueueJob(jobId: string) {
  * 清空队列（Server Action）
  */
 export async function cleanQueueAction(status?: "waiting" | "active" | "completed" | "failed" | "delayed" | "all") {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) throw new Error("Unauthorized");
 
     if (status === "all") {
@@ -51,7 +51,7 @@ export async function cleanQueueAction(status?: "waiting" | "active" | "complete
  * 添加任务到队列（Server Action）
  */
 export async function addJobToQueueAction(deploymentId: string, inputs?: Record<string, string | number>) {
-    const { userId, orgId } = auth();
+    const { userId, orgId } = await auth();
     if (!userId) throw new Error("Unauthorized");
 
     // 验证 deployment 存在且有权限

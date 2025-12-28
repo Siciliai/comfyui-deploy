@@ -2,9 +2,8 @@ import { AccessType } from "../../../lib/AccessType";
 import { MachineList } from "@/components/MachineList";
 import { MachineGroupList } from "@/components/MachineGroupList";
 import { db } from "@/db/db";
-import { machinesTable } from "@/db/schema";
-import { auth } from "@clerk/nextjs";
-import { clerkClient } from "@clerk/nextjs/server";
+import { machinesTable, usersTable } from "@/db/schema";
+import { auth } from "@/lib/auth";
 import { desc, eq, isNull, and } from "drizzle-orm";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getMachineGroups } from "@/server/curdMachineGroup";
@@ -21,7 +20,10 @@ async function MachineListServer() {
     return <div>No auth</div>;
   }
 
-  const user = await clerkClient.users.getUser(userId);
+  // 使用本地数据库查询用户
+  const user = await db.query.usersTable.findFirst({
+    where: eq(usersTable.id, userId),
+  });
 
   const machines = await db.query.machinesTable.findMany({
     orderBy: desc(machinesTable.updated_at),
@@ -44,7 +46,7 @@ async function MachineListServer() {
         <TabsContent value="machines">
           <MachineList
             data={machines}
-            userMetadata={AccessType.parse(user.privateMetadata ?? {})}
+            userMetadata={AccessType.parse({})}
           />
         </TabsContent>
         <TabsContent value="groups">

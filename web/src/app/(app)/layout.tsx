@@ -2,7 +2,7 @@ import { Navbar } from "../../components/Navbar";
 import "./globals.css";
 import { PHProvider } from "./providers";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { ClerkProvider } from "@clerk/nextjs";
+import { AuthProvider } from "@/components/AuthProvider";
 import type { Metadata } from "next";
 import meta from "next-gen/config";
 import PlausibleProvider from "next-plausible";
@@ -40,7 +40,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <ClerkProvider>
+      <AuthProvider>
         <TooltipProvider>
           {process.env.PLAUSIBLE_DOMAIN && (
             <head>
@@ -66,7 +66,7 @@ export default function RootLayout({
             </body>
           </PHProvider>
         </TooltipProvider>
-      </ClerkProvider>
+      </AuthProvider>
     </html>
   );
 }

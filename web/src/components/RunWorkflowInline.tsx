@@ -8,9 +8,10 @@ import AutoForm, { AutoFormSubmit } from "@/components/ui/auto-form";
 import { Button } from "@/components/ui/button";
 import type { getInputsFromWorkflow } from "@/lib/getInputsFromWorkflow";
 import { createRun } from "@/server/createRun";
-import { useAuth, useClerk } from "@clerk/nextjs";
+import { useSession } from "next-auth/react";
 import { Play } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
 // For share page
 export function RunWorkflowInline({
@@ -25,8 +26,8 @@ export function RunWorkflowInline({
   const [values, setValues] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
 
-  const user = useAuth();
-  const clerk = useClerk();
+  const { data: session, status } = useSession();
+  const router = useRouter();
 
   const schema = useMemo(() => {
     return plainInputsToZod(inputs);
@@ -55,10 +56,8 @@ export function RunWorkflowInline({
   } = publicRunStore();
 
   const runWorkflow = async () => {
-    if (!user.isSignedIn) {
-      clerk.openSignIn({
-        redirectUrl: window.location.href,
-      });
+    if (status !== "authenticated") {
+      router.push(`/login?callbackUrl=${encodeURIComponent(window.location.href)}`);
       return;
     }
     console.log(values);

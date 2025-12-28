@@ -3,14 +3,14 @@
 import { db } from "@/db/db";
 import { apiKeyTable, authRequestsTable } from "@/db/schema";
 import { withServerPromise } from "@/server/withServerPromise";
-import { auth } from "@clerk/nextjs";
+import { auth } from "@/lib/auth";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import { revalidatePath } from "next/cache";
 
 export const createAuthRequest = withServerPromise(
   async (request_id: string) => {
-    const { userId, orgId } = auth();
+    const { userId, orgId } = await auth();
 
     const result = await db.insert(authRequestsTable).values({
       request_id: request_id,
@@ -25,7 +25,7 @@ export const createAuthRequest = withServerPromise(
 );
 
 export async function addNewAPIKey(name: string) {
-  const { userId, orgId } = auth();
+  const { userId, orgId } = await auth();
 
   if (!userId) throw new Error("No user id");
 
@@ -56,7 +56,7 @@ export async function addNewAPIKey(name: string) {
 }
 
 export async function deleteAPIKey(id: string) {
-  const { userId, orgId } = auth();
+  const { userId, orgId } = await auth();
 
   if (!userId) throw new Error("No user id");
 
@@ -84,7 +84,7 @@ export async function deleteAPIKey(id: string) {
 }
 
 export async function getAPIKeys() {
-  const { userId, orgId } = auth();
+  const { userId, orgId } = await auth();
 
   if (!userId) throw new Error("No user id");
 

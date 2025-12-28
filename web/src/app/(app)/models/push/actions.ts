@@ -1,6 +1,6 @@
 "use server";
 
-import { auth } from "@clerk/nextjs";
+import { auth } from "@/lib/auth";
 import { db } from "@/db/db";
 import { modelPushTasksTable, volumeModelsTable, machinesTable } from "@/db/schema";
 import { eq, and, desc, inArray } from "drizzle-orm";

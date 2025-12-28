@@ -1,7 +1,7 @@
 "use server";
 
 import { getMachineById } from "@/server/curdMachine";
-import { auth } from "@clerk/nextjs";
+import { auth } from "@/lib/auth";
 import jwt from "jsonwebtoken";
 import { getOrgOrUserDisplayName } from "@/server/getOrgOrUserDisplayName";
 import { withServerPromise } from "@/server/withServerPromise";
@@ -10,7 +10,7 @@ import { headers } from "next/headers";
 
 export const editWorkflowOnMachine = withServerPromise(
   async (workflow_version_id: string, machine_id: string) => {
-    const { userId, orgId } = auth();
+    const { userId, orgId } = await auth();
 
     const headersList = headers();
     const host = headersList.get("host") || "";

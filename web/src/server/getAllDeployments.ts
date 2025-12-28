@@ -2,7 +2,7 @@
 
 import { db } from "@/db/db";
 import { deploymentsTable, workflowTable } from "@/db/schema";
-import { auth } from "@clerk/nextjs";
+import { auth } from "@/lib/auth";
 import { and, eq, isNull } from "drizzle-orm";
 import "server-only";
 
@@ -10,7 +10,7 @@ import "server-only";
  * 获取用户或组织的所有部署
  */
 export async function getAllDeployments() {
-    const { userId, orgId } = auth();
+    const { userId, orgId } = await auth();
     if (!userId) throw new Error("No user id");
 
     const deployments = await db.query.deploymentsTable.findMany({

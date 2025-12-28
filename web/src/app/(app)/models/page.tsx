@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs";
+import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { ModelsManagement } from "@/components/ModelsManagement";
 

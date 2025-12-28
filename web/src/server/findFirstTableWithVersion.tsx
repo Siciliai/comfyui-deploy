@@ -1,10 +1,10 @@
 import { db } from "@/db/db";
 import { workflowTable, workflowVersionTable } from "@/db/schema";
-import { auth } from "@clerk/nextjs";
+import { auth } from "@/lib/auth";
 import { and, desc, eq, isNull } from "drizzle-orm";
 
 export async function findFirstTableWithVersion(workflow_id: string) {
-  const { userId, orgId } = auth();
+  const { userId, orgId } = await auth();
   if (!userId) throw new Error("No auth");
   return await db.query.workflowTable.findFirst({
     with: { versions: { orderBy: desc(workflowVersionTable.version) } },
@@ -18,7 +18,7 @@ export async function findFirstTableWithVersion(workflow_id: string) {
 }
 
 export function findWorkflowById(workflow_id: string) {
-  const { userId, orgId } = auth();
+  const { userId, orgId } = await auth();
   if (!userId) throw new Error("No auth");
 
   return db.query.workflowTable.findFirst({

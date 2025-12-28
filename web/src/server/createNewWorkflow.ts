@@ -2,7 +2,7 @@ import { db } from "@/db/db";
 import type { WorkflowVersionType } from "@/db/schema";
 import { workflowTable, workflowVersionTable } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
-import { auth } from "@clerk/nextjs";
+import { auth } from "@/lib/auth";
 
 export async function createNewWorkflowVersion({
   workflow_id,

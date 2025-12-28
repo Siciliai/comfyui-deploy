@@ -10,7 +10,7 @@ import { machinesTable, workflowRunsTable, workflowVersionTable } from "@/db/sch
 import type { APIKeyUserType } from "@/server/APIKeyBodyRequest";
 import { getRunsData } from "@/server/getRunsData";
 import { ComfyAPI_Run } from "@/types/ComfyAPI_Run";
-import { auth } from "@clerk/nextjs";
+import { auth } from "@/lib/auth";
 import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import "server-only";
@@ -310,7 +310,7 @@ export const createRun = withServerPromise(
 );
 
 export async function checkStatus(run_id: string) {
-  const { userId } = auth();
+  const { userId } = await auth();
   if (!userId) throw new Error("User not found");
 
   return await getRunsData(run_id);

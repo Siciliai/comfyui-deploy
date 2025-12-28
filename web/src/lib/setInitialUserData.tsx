@@ -1,26 +1,23 @@
 import { db } from "@/db/db";
 import { usersTable } from "@/db/schema";
-import { clerkClient } from "@clerk/nextjs";
+import { eq } from "drizzle-orm";
 
+// 注意：这个函数现在主要用于确保用户存在
+// 用户创建已经在注册流程中处理
 export async function setInitialUserData(userId: string) {
-  const user = await clerkClient.users.getUser(userId);
+  // 检查用户是否已存在
+  const existingUser = await db.query.usersTable.findFirst({
+    where: eq(usersTable.id, userId),
+  });
 
-  // incase we dont have username such as google login, fallback to first name + last name
-  const usernameFallback =
-    user.username ?? (user.firstName ?? "") + (user.lastName ?? "");
-
-  // For the display name, if it for some reason is empty, fallback to username
-  let nameFallback = (user.firstName ?? "") + (user.lastName ?? "");
-  if (nameFallback === "") {
-    nameFallback = usernameFallback;
+  // 如果用户已存在，不需要再创建
+  if (existingUser) {
+    return existingUser;
   }
 
-  const result = await db.insert(usersTable).values({
-    id: userId,
-    // this is used for path, make sure this is unique
-    username: usernameFallback,
-
-    // this is for display name, maybe different from username
-    name: nameFallback,
-  });
+  // 这种情况不应该发生，因为用户应该在注册时创建
+  // 但为了安全起见，我们可以创建一个占位符
+  console.warn(`User ${userId} not found in database, this should not happen`);
+  
+  return null;
 }

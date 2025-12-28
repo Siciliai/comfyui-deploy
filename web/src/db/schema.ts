@@ -16,8 +16,11 @@ export const dbSchema = pgSchema("comfyui_deploy");
 
 export const usersTable = dbSchema.table("users", {
   id: text("id").primaryKey().notNull(),
-  username: text("username").notNull(),
+  username: text("username").notNull().unique(),
   name: text("name").notNull(),
+  email: text("email"),
+  password_hash: text("password_hash"),
+  org_id: text("org_id"),
   created_at: timestamp("created_at").defaultNow(),
   updated_at: timestamp("updated_at").defaultNow(),
 });

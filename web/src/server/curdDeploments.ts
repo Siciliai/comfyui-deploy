@@ -6,8 +6,7 @@ import { deploymentsTable, workflowTable, workflowVersionTable } from "@/db/sche
 import { createNewWorkflow } from "@/server/createNewWorkflow";
 import { addCustomMachine } from "@/server/curdMachine";
 import { withServerPromise } from "@/server/withServerPromise";
-import { auth } from "@clerk/nextjs";
-import { clerkClient } from "@clerk/nextjs/server";
+import { auth } from "@/lib/auth";
 import slugify from "@sindresorhus/slugify";
 import { and, eq, isNull, or } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
@@ -23,7 +22,7 @@ export async function createDeployments(
   machine_group_id: string | null,
   environment: DeploymentType["environment"],
 ) {
-  const { userId, orgId } = auth();
+  const { userId, orgId } = await auth();
   if (!userId) throw new Error("No user id");
 
   // Staging环境只能使用machine_id
@@ -82,13 +81,8 @@ export async function createDeployments(
 
     if (!workflow) throw new Error("No workflow found");
 
-    const userName = workflow.org_id
-      ? await clerkClient.organizations
-        .getOrganization({
-          organizationId: workflow.org_id,
-        })
-        .then((x) => x.name)
-      : workflow.user.name;
+    // 使用本地数据库获取用户名
+    const userName = workflow.user.name;
 
     await db.insert(deploymentsTable).values({
       user_id: userId,
@@ -110,7 +104,7 @@ export async function createDeployments(
 }
 
 export async function findAllDeployments() {
-  const { userId, orgId } = auth();
+  const { userId, orgId } = await auth();
   if (!userId) throw new Error("No user id");
 
   const deployments = await db.query.workflowTable.findMany({
@@ -200,7 +194,7 @@ export const cloneWorkflow = withServerPromise(
 
     if (!deployment) throw new Error("No deployment found");
 
-    const { userId, orgId } = auth();
+    const { userId, orgId } = await auth();
 
     if (!userId) throw new Error("No user id");
 
@@ -239,7 +233,7 @@ export const cloneMachine = withServerPromise(async (deployment_id: string) => {
   if (deployment.machine.type !== "comfy-deploy-serverless")
     throw new Error("Can only clone comfy-deploy-serverlesss");
 
-  const { userId, orgId } = auth();
+  const { userId, orgId } = await auth();
 
   if (!userId) throw new Error("No user id");
 
@@ -257,7 +251,7 @@ export const cloneMachine = withServerPromise(async (deployment_id: string) => {
 });
 
 export async function findUserShareDeployment(share_id: string) {
-  const { userId, orgId } = auth();
+  const { userId, orgId } = await auth();
 
   if (!userId) throw new Error("No user id");
 
@@ -285,7 +279,7 @@ export async function findUserShareDeployment(share_id: string) {
 }
 
 export async function findUserShareDeploymentByWorkflowId(workflow_id: string) {
-  const { userId, orgId } = auth();
+  const { userId, orgId } = await auth();
 
   if (!userId) throw new Error("No user id");
 
@@ -317,7 +311,7 @@ export const updateSharePageInfo = withServerPromise(
   }: z.infer<typeof publicShareDeployment> & {
     id: string;
   }) => {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) return { error: "No user id" };
 
     console.log(data);

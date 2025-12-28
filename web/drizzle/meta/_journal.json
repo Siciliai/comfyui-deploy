@@ -281,6 +281,20 @@
       "when": 1762913075426,
       "tag": "0039_luxuriant_warpath",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "5",
+      "when": 1735400000000,
+      "tag": "0040_add_user_auth_fields",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "5",
+      "when": 1766929648838,
+      "tag": "0041_cloudy_lifeguard",
+      "breakpoints": true
     }
   ]
 }

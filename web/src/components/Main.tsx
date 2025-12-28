@@ -3,7 +3,7 @@ import { db } from "@/db/db";
 import { usersTable } from "@/db/schema";
 import { setInitialUserData } from "@/lib/setInitialUserData";
 import { cn } from "@/lib/utils";
-import { auth } from "@clerk/nextjs/server";
+import { auth } from "@/lib/auth";
 import { eq } from "drizzle-orm";
 import meta from "next-gen/config";
 

@@ -1,11 +1,11 @@
 "use server";
 
-import { auth } from "@clerk/nextjs";
+import { auth } from "@/lib/auth";
 import { getAPIKeys, addNewAPIKey } from "@/server/curdApiKeys";
 import jwt from "jsonwebtoken";
 
 export async function getOrCreateApiKey() {
-  const { userId, orgId } = auth();
+  const { userId, orgId } = await auth();
   if (!userId) {
     throw new Error("Unauthorized");
   }

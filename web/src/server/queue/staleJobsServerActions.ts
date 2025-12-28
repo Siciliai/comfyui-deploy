@@ -1,6 +1,6 @@
 "use server";
 
-import { auth } from "@clerk/nextjs";
+import { auth } from "@/lib/auth";
 import { checkAndCleanStaleJobs } from "./checkStaleJobs";
 import {
     startStaleJobsChecker,
@@ -13,7 +13,7 @@ import "server-only";
  * 手动触发清理 stale jobs
  */
 export async function cleanStaleJobsAction() {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) throw new Error("Unauthorized");
 
     const result = await checkAndCleanStaleJobs();
@@ -29,7 +29,7 @@ export async function cleanStaleJobsAction() {
  * 启动定时清理
  */
 export async function startStaleJobsCheckerAction() {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) throw new Error("Unauthorized");
 
     const result = startStaleJobsChecker();
@@ -40,7 +40,7 @@ export async function startStaleJobsCheckerAction() {
  * 停止定时清理
  */
 export async function stopStaleJobsCheckerAction() {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) throw new Error("Unauthorized");
 
     const result = stopStaleJobsChecker();
@@ -51,7 +51,7 @@ export async function stopStaleJobsCheckerAction() {
  * 获取定时清理状态
  */
 export async function getStaleJobsCheckerStatusAction() {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) throw new Error("Unauthorized");
 
     const status = getStaleJobsCheckerStatus();

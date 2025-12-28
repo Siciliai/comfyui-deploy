@@ -6,7 +6,7 @@ import {
     machineGroupMembersTable,
     machinesTable,
 } from "@/db/schema";
-import { auth } from "@clerk/nextjs";
+import { auth } from "@/lib/auth";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import "server-only";
@@ -15,7 +15,7 @@ import { createMachineGroupSchema } from "./addMachineGroupSchema";
 import type { z } from "zod";
 
 export async function getMachineGroups() {
-    const { userId, orgId } = auth();
+    const { userId, orgId } = await auth();
     if (!userId) throw new Error("No user id");
 
     const groups = await db.query.machineGroupsTable.findMany({
@@ -40,7 +40,7 @@ export async function getMachineGroups() {
 
 export const createMachineGroup = withServerPromise(
     async (data: z.infer<typeof createMachineGroupSchema>) => {
-        const { userId, orgId } = auth();
+        const { userId, orgId } = await auth();
         if (!userId) throw new Error("No user id");
 
         await db.insert(machineGroupsTable).values({
@@ -59,7 +59,7 @@ export const updateMachineGroup = withServerPromise(
         id,
         ...data
     }: z.infer<typeof createMachineGroupSchema> & { id: string }) => {
-        const { userId } = auth();
+        const { userId } = await auth();
         if (!userId) throw new Error("No user id");
 
         await db
@@ -74,7 +74,7 @@ export const updateMachineGroup = withServerPromise(
 
 export const deleteMachineGroup = withServerPromise(
     async (group_id: string) => {
-        const { userId } = auth();
+        const { userId } = await auth();
         if (!userId) throw new Error("No user id");
 
         await db
@@ -94,7 +94,7 @@ export const addMachineToGroup = withServerPromise(
         group_id: string;
         machine_id: string;
     }) => {
-        const { userId } = auth();
+        const { userId } = await auth();
         if (!userId) throw new Error("No user id");
 
         // Check if already exists
@@ -127,7 +127,7 @@ export const removeMachineFromGroup = withServerPromise(
         group_id: string;
         machine_id: string;
     }) => {
-        const { userId } = auth();
+        const { userId } = await auth();
         if (!userId) throw new Error("No user id");
 
         await db
@@ -152,7 +152,7 @@ export const updateMachineQueueSettings = withServerPromise(
         machine_id: string;
         allow_comfyui_queue_size: number;
     }) => {
-        const { userId } = auth();
+        const { userId } = await auth();
         if (!userId) throw new Error("No user id");
 
         await db
@@ -169,7 +169,7 @@ export const updateMachineQueueSettings = withServerPromise(
 
 export const syncMachineQueueFromComfyUI = withServerPromise(
     async (machine_id?: string) => {
-        const { userId } = auth();
+        const { userId } = await auth();
         if (!userId) throw new Error("No user id");
 
         const { syncSingleMachineQueue, syncAllMachinesQueue } = await import(

@@ -5,7 +5,7 @@ import {
   workflowVersionTable,
 } from "@/db/schema";
 import { APIKeyUserType } from "@/server/APIKeyBodyRequest";
-import { auth } from "@clerk/nextjs";
+import { auth } from "@/lib/auth";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { redirect } from "next/navigation";
 

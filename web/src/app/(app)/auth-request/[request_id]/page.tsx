@@ -1,7 +1,7 @@
 import { ButtonAction } from "@/components/ButtonActionLoader";
 import { Button } from "@/components/ui/button";
 import { createAuthRequest } from "@/server/curdApiKeys";
-import { auth } from "@clerk/nextjs";
+import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getOrgOrUserDisplayName } from "../../../../server/getOrgOrUserDisplayName";
 import { db } from "@/db/db";

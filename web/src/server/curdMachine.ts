@@ -8,7 +8,7 @@ import { withServerPromise } from "./withServerPromise";
 import { db } from "@/db/db";
 import type { MachineType } from "@/db/schema";
 import { machinesTable } from "@/db/schema";
-import { auth } from "@clerk/nextjs";
+import { auth } from "@/lib/auth";
 import { and, eq, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
@@ -17,7 +17,7 @@ import "server-only";
 import type { z } from "zod";
 
 export async function getMachines() {
-  const { userId, orgId } = auth();
+  const { userId, orgId } = await auth();
   if (!userId) throw new Error("No user id");
   const machines = await db
     .select()
@@ -38,7 +38,7 @@ export async function getMachines() {
 }
 
 export async function getMachineById(id: string) {
-  const { userId, orgId } = auth();
+  const { userId, orgId } = await auth();
   if (!userId) throw new Error("No user id");
   const machines = await db
     .select()
@@ -59,7 +59,7 @@ export async function getMachineById(id: string) {
 
 export const addMachine = withServerPromise(
   async (data: z.infer<typeof addMachineSchema>) => {
-    const { userId, orgId } = auth();
+    const { userId, orgId } = await auth();
     if (!userId) return { error: "No user id" };
     // console.log(name, endpoint);
     await db.insert(machinesTable).values({
@@ -79,7 +79,7 @@ export const updateCustomMachine = withServerPromise(
   }: z.infer<typeof addCustomMachineSchema> & {
     id: string;
   }) => {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) return { error: "No user id" };
 
     const currentMachine = await db.query.machinesTable.findFirst({
@@ -125,7 +125,7 @@ export const updateCustomMachine = withServerPromise(
 
 export const buildMachine = withServerPromise(
   async ({ id }: { id: string }) => {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) return { error: "No user id" };
 
     const currentMachine = await db.query.machinesTable.findFirst({
@@ -151,7 +151,7 @@ export const buildMachine = withServerPromise(
 
 export const addCustomMachine = withServerPromise(
   async (data: z.infer<typeof addCustomMachineSchema>) => {
-    const { userId, orgId } = auth();
+    const { userId, orgId } = await auth();
 
     if (!userId) return { error: "No user id" };
 
@@ -236,7 +236,7 @@ export const updateMachine = withServerPromise(
   }: z.infer<typeof addMachineSchema> & {
     id: string;
   }) => {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) return { error: "No user id" };
     await db.update(machinesTable).set(data).where(eq(machinesTable.id, id));
     revalidatePath("/machines");

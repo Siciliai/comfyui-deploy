@@ -1,13 +1,13 @@
 "use server";
 
-import { auth } from "@clerk/nextjs";
+import { auth } from "@/lib/auth";
 import { initializeWorkerAndChecker, stopWorkerAndChecker, getInitializationStatus } from "../initWorker";
 
 /**
  * 手动启动 Worker
  */
 export async function startWorkerAction() {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
         throw new Error("Unauthorized");
     }
@@ -29,7 +29,7 @@ export async function startWorkerAction() {
  * 默认使用强制停止，立即停止 worker 和正在处理的任务
  */
 export async function stopWorkerAction(force: boolean = true) {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
         throw new Error("Unauthorized");
     }
@@ -51,7 +51,7 @@ export async function stopWorkerAction(force: boolean = true) {
  * 获取 Worker 状态
  */
 export async function getWorkerStatusAction() {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
         throw new Error("Unauthorized");
     }

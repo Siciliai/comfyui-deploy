@@ -1,6 +1,6 @@
 "use server";
 
-import { auth } from "@clerk/nextjs";
+import { auth } from "@/lib/auth";
 import { getNotificationQueueStatus, notificationQueue } from "./notification-queue";
 import { 
     startNotificationWorker, 
@@ -12,7 +12,7 @@ import {
  * 获取通知队列状态
  */
 export async function getNotificationQueueData() {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
         throw new Error("Unauthorized");
     }
@@ -80,7 +80,7 @@ async function getNotificationQueueJobs() {
  * 启动通知 Worker
  */
 export async function startNotificationWorkerAction() {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
         throw new Error("Unauthorized");
     }
@@ -119,7 +119,7 @@ export async function startNotificationWorkerAction() {
  * 停止通知 Worker
  */
 export async function stopNotificationWorkerAction(force: boolean = true) {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
         throw new Error("Unauthorized");
     }
@@ -155,7 +155,7 @@ export async function stopNotificationWorkerAction(force: boolean = true) {
  * 获取通知 Worker 状态
  */
 export async function getNotificationWorkerStatusAction() {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
         throw new Error("Unauthorized");
     }
@@ -181,7 +181,7 @@ export async function getNotificationWorkerStatusAction() {
  * 清理通知队列
  */
 export async function cleanNotificationQueue(status: "waiting" | "active" | "completed" | "failed" | "delayed" = "completed") {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
         throw new Error("Unauthorized");
     }

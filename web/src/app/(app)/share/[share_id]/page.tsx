@@ -18,7 +18,7 @@ import {
 	cloneWorkflow,
 	findSharedDeployment,
 } from "@/server/curdDeploments";
-import { auth, clerkClient } from "@clerk/nextjs/server";
+import { auth } from "@/lib/auth";
 import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 
@@ -46,13 +46,8 @@ export default async function Page({
 
 	if (!sharedDeployment) return redirect("/");
 
-	const userName = sharedDeployment.workflow.org_id
-		? await clerkClient.organizations
-				.getOrganization({
-					organizationId: sharedDeployment.workflow.org_id,
-				})
-				.then((x) => x.name)
-		: sharedDeployment.user.name;
+	// 使用本地数据库获取用户名
+	const userName = sharedDeployment.user.name;
 
 	const inputs = getInputsFromWorkflow(sharedDeployment.version);
 

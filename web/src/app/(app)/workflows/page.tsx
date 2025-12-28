@@ -4,7 +4,7 @@ import { WorkflowList } from "@/components/WorkflowList";
 import { UploadWorkflow } from "@/components/UploadWorkflow";
 import { db } from "@/db/db";
 import { usersTable } from "@/db/schema";
-import { auth } from "@clerk/nextjs";
+import { auth } from "@/lib/auth";
 import { eq } from "drizzle-orm";
 
 export default function Home() {
