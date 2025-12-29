@@ -10,17 +10,31 @@ import { headers } from "next/headers";
 
 export const editWorkflowOnMachine = withServerPromise(
   async (workflow_version_id: string, machine_id: string) => {
+    console.log(`\n${"=".repeat(60)}`);
+    console.log(`[editWorkflowOnMachine] 🚀 User clicked Edit Workflow`);
+    console.log(`[editWorkflowOnMachine] 📥 Input Parameters:`);
+    console.log(`[editWorkflowOnMachine]    - workflow_version_id: ${workflow_version_id}`);
+    console.log(`[editWorkflowOnMachine]    - machine_id: ${machine_id}`);
+
     const { userId, orgId } = await auth();
+    console.log(`[editWorkflowOnMachine] 🔐 Auth Info:`);
+    console.log(`[editWorkflowOnMachine]    - userId: ${userId}`);
+    console.log(`[editWorkflowOnMachine]    - orgId: ${orgId}`);
 
     // 优先使用 API_URL 环境变量，作为 origin（ComfyUI 机器需要能访问到）
     let domain: string;
     if (process.env.API_URL) {
       domain = process.env.API_URL.replace(/\/$/, "");
+      console.log(`[editWorkflowOnMachine] 🌐 Domain (from API_URL env): ${domain}`);
     } else {
       const headersList = headers();
       const host = headersList.get("host") || "";
       const protocol = headersList.get("x-forwarded-proto") || "";
       domain = `${protocol}://${host}`;
+      console.log(`[editWorkflowOnMachine] 🌐 Domain (from headers):`);
+      console.log(`[editWorkflowOnMachine]    - host: ${host}`);
+      console.log(`[editWorkflowOnMachine]    - protocol: ${protocol}`);
+      console.log(`[editWorkflowOnMachine]    - domain: ${domain}`);
     }
 
     if (!userId) {
@@ -28,6 +42,11 @@ export const editWorkflowOnMachine = withServerPromise(
     }
 
     const machine = await getMachineById(machine_id);
+    console.log(`[editWorkflowOnMachine] 🖥️  Machine Info:`);
+    console.log(`[editWorkflowOnMachine]    - machine.id: ${machine.id}`);
+    console.log(`[editWorkflowOnMachine]    - machine.name: ${machine.name}`);
+    console.log(`[editWorkflowOnMachine]    - machine.type: ${machine.type}`);
+    console.log(`[editWorkflowOnMachine]    - machine.endpoint: ${machine.endpoint}`);
 
     const expireTime = "1w";
     const token = jwt.sign(
@@ -39,17 +58,30 @@ export const editWorkflowOnMachine = withServerPromise(
     );
 
     const userName = await getOrgOrUserDisplayName(orgId, userId);
+    console.log(`[editWorkflowOnMachine] 👤 User Display Name: ${userName}`);
 
     let endpoint = machine.endpoint;
 
     if (machine.type === "comfy-deploy-serverless") {
       endpoint = machine.endpoint.replace("comfyui-api", "comfyui-app");
+      console.log(`[editWorkflowOnMachine] 🔄 Endpoint modified for serverless: ${endpoint}`);
     }
 
-    return `${endpoint}?workflow_version_id=${encodeURIComponent(
+    const finalUrl = `${endpoint}?workflow_version_id=${encodeURIComponent(
       workflow_version_id,
     )}&auth_token=${encodeURIComponent(token)}&org_display=${encodeURIComponent(
       userName,
     )}&origin=${encodeURIComponent(domain)}`;
+
+    console.log(`[editWorkflowOnMachine] 📤 Final URL Parameters:`);
+    console.log(`[editWorkflowOnMachine]    - endpoint: ${endpoint}`);
+    console.log(`[editWorkflowOnMachine]    - workflow_version_id: ${workflow_version_id}`);
+    console.log(`[editWorkflowOnMachine]    - auth_token: ${token.substring(0, 50)}...`);
+    console.log(`[editWorkflowOnMachine]    - org_display: ${userName}`);
+    console.log(`[editWorkflowOnMachine]    - origin: ${domain}`);
+    console.log(`[editWorkflowOnMachine] 🔗 Final URL: ${finalUrl}`);
+    console.log(`${"=".repeat(60)}\n`);
+
+    return finalUrl;
   },
 );
