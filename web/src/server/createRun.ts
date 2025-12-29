@@ -37,7 +37,9 @@ export const createRun = withServerPromise(
   }) => {
     console.log(`\n${"=".repeat(60)}`);
     console.log(`[createRun] 🚀 Starting workflow run creation...`);
-    console.log(`[createRun] 📍 Origin (API_URL): ${origin}`);
+    console.log(`[createRun] 🔧 Environment Check:`);
+    console.log(`[createRun]    - process.env.API_URL = "${process.env.API_URL || '(not set)'}"`);
+    console.log(`[createRun]    - Received origin param = "${origin}"`);
     console.log(`[createRun] 📍 Callback URLs will be:`);
     console.log(`[createRun]    - status_endpoint: ${origin}/api/update-run`);
     console.log(`[createRun]    - file_upload_endpoint: ${origin}/api/file-upload`);

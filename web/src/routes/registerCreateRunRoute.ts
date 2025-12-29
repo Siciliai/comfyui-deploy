@@ -6,6 +6,12 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { eq } from "drizzle-orm";
 import { createRun } from "../server/createRun";
 
+// 启动时打印环境变量（用于调试）
+console.log(`\n🔧 [registerCreateRunRoute] Environment variables at module load:`);
+console.log(`   API_URL = "${process.env.API_URL || '(not set)'}"`);
+console.log(`   NEXT_PUBLIC_APP_URL = "${process.env.NEXT_PUBLIC_APP_URL || '(not set)'}"`);
+console.log(``);
+
 const createRunRoute = createRoute({
   method: "post",
   path: "/run",

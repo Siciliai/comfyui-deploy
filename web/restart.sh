@@ -55,8 +55,40 @@ echo "旧进程已清理完成"
 echo "[2/2] 启动新进程..."
 cd "$SCRIPT_DIR"
 
-# 使用 nohup 启动，输出重定向到日志文件
-nohup bun run start > "$LOG_FILE" 2>&1 &
+# 加载 .env 文件中的环境变量
+ENV_FILE="$SCRIPT_DIR/.env"
+ENV_VARS=""
+if [ -f "$ENV_FILE" ]; then
+    echo "📄 加载环境变量从: $ENV_FILE"
+    # 读取 .env 文件，忽略注释和空行
+    while IFS='=' read -r key value || [ -n "$key" ]; do
+        # 跳过注释和空行
+        [[ "$key" =~ ^#.*$ ]] && continue
+        [[ -z "$key" ]] && continue
+        # 去除值两端的引号（如果有）
+        value="${value%\"}"
+        value="${value#\"}"
+        value="${value%\'}"
+        value="${value#\'}"
+        # 导出到当前 shell
+        export "$key=$value"
+        # 构建环境变量字符串用于 nohup
+        ENV_VARS="$ENV_VARS $key=$value"
+        echo "   ✓ $key=${value:0:50}..."
+    done < "$ENV_FILE"
+    echo ""
+else
+    echo "⚠️  警告: 未找到 .env 文件: $ENV_FILE"
+fi
+
+# 打印关键环境变量（用于调试）
+echo "🔧 关键环境变量:"
+echo "   API_URL=$API_URL"
+echo "   NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL"
+echo ""
+
+# 使用 nohup 启动，通过 env 命令传递环境变量
+nohup env $ENV_VARS bun run start > "$LOG_FILE" 2>&1 &
 NEW_PID=$!
 
 # 保存 PID 到文件
