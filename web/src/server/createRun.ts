@@ -35,7 +35,17 @@ export const createRun = withServerPromise(
     apiUser?: APIKeyUserType;
     queueJobId?: string; // 队列任务的 job_id
   }) => {
-    console.log(`[createRun] Starting workflow run creation...`);
+    console.log(`\n${"=".repeat(60)}`);
+    console.log(`[createRun] 🚀 Starting workflow run creation...`);
+    console.log(`[createRun] 📍 Origin (API_URL): ${origin}`);
+    console.log(`[createRun] 📍 Callback URLs will be:`);
+    console.log(`[createRun]    - status_endpoint: ${origin}/api/update-run`);
+    console.log(`[createRun]    - file_upload_endpoint: ${origin}/api/file-upload`);
+    console.log(`[createRun] 📋 Run Origin: ${runOrigin || 'not specified'}`);
+    console.log(`[createRun] 📋 Queue Job ID: ${queueJobId || 'not specified'}`);
+    if (inputs) {
+      console.log(`[createRun] 📥 Inputs:`, JSON.stringify(inputs, null, 2));
+    }
 
     const machine =
       typeof machine_id === "string"
@@ -51,6 +61,12 @@ export const createRun = withServerPromise(
       console.error(`[createRun] ❌ Machine not found: ${typeof machine_id === "string" ? machine_id : machine_id.id}`);
       throw new Error("Machine not found");
     }
+
+    console.log(`[createRun] 🖥️ Machine Info:`);
+    console.log(`[createRun]    - ID: ${machine.id}`);
+    console.log(`[createRun]    - Name: ${machine.name}`);
+    console.log(`[createRun]    - Type: ${machine.type}`);
+    console.log(`[createRun]    - Endpoint: ${machine.endpoint}`);
 
     const workflow_version_data =
       typeof workflow_version_id === "string"
@@ -186,6 +202,14 @@ export const createRun = withServerPromise(
             },
           };
 
+          console.log(`\n[createRun] 📤 Sending request to ComfyUI (${machine.type} mode):`);
+          console.log(`[createRun]    - Target URL: ${machine.endpoint}/run`);
+          console.log(`[createRun]    - Method: POST`);
+          console.log(`[createRun]    - Request Body:`);
+          console.log(`[createRun]      prompt_id: ${_data.input.prompt_id}`);
+          console.log(`[createRun]      status_endpoint: ${_data.input.status_endpoint}`);
+          console.log(`[createRun]      file_upload_endpoint: ${_data.input.file_upload_endpoint}`);
+
           const ___result = await fetch(`${machine.endpoint}/run`, {
             method: "POST",
             headers: {
@@ -194,13 +218,14 @@ export const createRun = withServerPromise(
             body: JSON.stringify(_data),
             cache: "no-store",
           });
-          console.log(___result);
-          if (!___result.ok)
-            throw new Error(
-              `Error creating run, ${___result.statusText
-              } ${await ___result.text()}`,
-            );
-          console.log(_data, ___result);
+
+          console.log(`[createRun] 📥 Response: ${___result.status} ${___result.statusText}`);
+          if (!___result.ok) {
+            const errorText = await ___result.text();
+            console.error(`[createRun] ❌ Error response:`, errorText);
+            throw new Error(`Error creating run, ${___result.statusText} ${errorText}`);
+          }
+          console.log(`[createRun] ✅ Request sent successfully`);
           break;
         case "runpod-serverless":
           const data = {
@@ -218,6 +243,15 @@ export const createRun = withServerPromise(
             throw new Error("Machine auth token not found");
           }
 
+          console.log(`\n[createRun] 📤 Sending request to ComfyUI (runpod-serverless mode):`);
+          console.log(`[createRun]    - Target URL: ${machine.endpoint}/run`);
+          console.log(`[createRun]    - Method: POST`);
+          console.log(`[createRun]    - Auth: Bearer token ${machine.auth_token ? '[present]' : '[missing]'}`);
+          console.log(`[createRun]    - Request Body:`);
+          console.log(`[createRun]      prompt_id: ${data.input.prompt_id}`);
+          console.log(`[createRun]      status_endpoint: ${data.input.status_endpoint}`);
+          console.log(`[createRun]      file_upload_endpoint: ${data.input.file_upload_endpoint}`);
+
           const __result = await fetch(`${machine.endpoint}/run`, {
             method: "POST",
             headers: {
@@ -227,27 +261,40 @@ export const createRun = withServerPromise(
             body: JSON.stringify(data),
             cache: "no-store",
           });
-          console.log(__result);
-          if (!__result.ok)
-            throw new Error(
-              `Error creating run, ${__result.statusText
-              } ${await __result.text()}`,
-            );
-          console.log(data, __result);
+
+          console.log(`[createRun] 📥 Response: ${__result.status} ${__result.statusText}`);
+          if (!__result.ok) {
+            const errorText = await __result.text();
+            console.error(`[createRun] ❌ Error response:`, errorText);
+            throw new Error(`Error creating run, ${__result.statusText} ${errorText}`);
+          }
+          console.log(`[createRun] ✅ Request sent successfully`);
           break;
         case "classic":
           const body = {
             ...shareData,
             prompt_id: prompt_id,
           };
-          // console.log(body);
           const comfyui_endpoint = `${machine.endpoint}/comfyui-deploy/run`;
+
+          console.log(`\n[createRun] 📤 Sending request to ComfyUI (classic mode):`);
+          console.log(`[createRun]    - Target URL: ${comfyui_endpoint}`);
+          console.log(`[createRun]    - Method: POST`);
+          console.log(`[createRun]    - Request Body:`);
+          console.log(`[createRun]      prompt_id: ${body.prompt_id}`);
+          console.log(`[createRun]      status_endpoint: ${body.status_endpoint}`);
+          console.log(`[createRun]      file_upload_endpoint: ${body.file_upload_endpoint}`);
+          console.log(`[createRun]      workflow_api_raw: ${body.workflow_api_raw ? '[workflow data present]' : '[null]'}`);
+          console.log(`[createRun]      workflow: ${body.workflow ? '[workflow json present]' : '[null]'}`);
+
           const _result = await fetch(comfyui_endpoint, {
             method: "POST",
             body: JSON.stringify(body),
             cache: "no-store",
           });
-          // console.log(_result);
+
+          console.log(`[createRun] 📥 Response from ComfyUI:`);
+          console.log(`[createRun]    - Status: ${_result.status} ${_result.statusText}`);
 
           if (!_result.ok) {
             let message = `Error creating run, ${_result.statusText}`;
@@ -256,10 +303,11 @@ export const createRun = withServerPromise(
                 await _result.json(),
               );
               message += ` ${result.node_errors}`;
+              console.error(`[createRun] ❌ ComfyUI returned error:`, result);
             } catch (error) { }
             throw new Error(message);
           }
-          // prompt_id = result.prompt_id;
+          console.log(`[createRun] ✅ Request sent successfully to ComfyUI`);
           break;
       }
     } catch (e) {
@@ -301,6 +349,11 @@ export const createRun = withServerPromise(
         status: "running", // 立即更新状态为 running，表示任务已在 ComfyUI 中开始执行
       })
       .where(eq(workflowRunsTable.id, workflow_run[0].id));
+
+    console.log(`\n[createRun] 🎉 Workflow run created successfully!`);
+    console.log(`[createRun]    - Run ID: ${workflow_run[0].id}`);
+    console.log(`[createRun]    - ComfyUI will callback to: ${origin}`);
+    console.log(`${"=".repeat(60)}\n`);
 
     return {
       workflow_run_id: workflow_run[0].id,
