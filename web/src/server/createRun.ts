@@ -164,6 +164,10 @@ export const createRun = withServerPromise(
             if (node.class_type == "ComfyUIDeployExternalText") {
               node.inputs["default_value"] = inputs[key];
             }
+            // Fix for external image batch - update 'images' parameter instead of 'input_id'
+            if (node.class_type == "ComfyUIDeployExternalImageBatch") {
+              node.inputs["images"] = inputs[key];
+            }
           }
 
         });
