@@ -211,19 +211,11 @@ export function PublicRunOutputs(props: {
         if (res && res.status === "success") {
           // 收集所有 output 中的 images
           const allImages: { url: string }[] = [];
-          console.log("[DEBUG] res.outputs:", res.outputs);
-          console.log("[DEBUG] res.outputs length:", res.outputs?.length);
-
           if (res.outputs && Array.isArray(res.outputs)) {
-            for (let i = 0; i < res.outputs.length; i++) {
-              const output = res.outputs[i];
-              console.log(`[DEBUG] output[${i}]:`, output);
-              console.log(`[DEBUG] output[${i}].data:`, output?.data);
+            for (const output of res.outputs) {
               const images = output?.data?.images;
-              console.log(`[DEBUG] output[${i}].data.images:`, images);
               if (images && Array.isArray(images)) {
                 for (const item of images) {
-                  console.log(`[DEBUG] image item:`, item);
                   if (item.url) {
                     allImages.push({ url: item.url });
                   }
@@ -231,8 +223,6 @@ export function PublicRunOutputs(props: {
               }
             }
           }
-
-          console.log("[DEBUG] allImages collected:", allImages);
 
           if (allImages.length > 0) {
             setImage(allImages);

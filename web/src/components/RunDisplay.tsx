@@ -1,4 +1,3 @@
-import { RunInputs } from "@/components/RunInputs";
 import { RunOutputs } from "@/components/RunOutputs";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -62,9 +61,8 @@ export async function RunDisplay({
 					</DialogDescription>
 				</DialogHeader>
 				<div className="max-h-96 overflow-y-scroll">
-					<RunInputs run={run} />
 					<Suspense>
-						<RunOutputs run_id={run.id} />
+						<RunOutputs run_id={run.id} workflow_inputs={run.workflow_inputs} />
 					</Suspense>
 				</div>
 				{/* <div className="max-h-96 overflow-y-scroll">{view}</div> */}
