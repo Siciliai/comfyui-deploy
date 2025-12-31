@@ -19,13 +19,23 @@ let initPromise: Promise<void> | null = null;
  * 使用单例模式确保只初始化一次
  */
 export async function initializeWorkerAndChecker() {
+    // 检查是否在 build 阶段（build 时不应该启动 worker）
+    const isBuildPhase = process.env.NEXT_PHASE === 'phase-production-build' ||
+        process.argv.some(arg => arg.includes('next') && arg.includes('build'));
+
+    if (isBuildPhase) {
+        console.log('[MANUAL-INIT] Skipping worker initialization during build phase');
+        return;
+    }
+
     // 如果已经在初始化中，等待完成
     if (initPromise) {
         return initPromise;
     }
 
     // 如果已经初始化，直接返回
-    if (global.workerInitialized) {
+    if (global.workerInitialized && global.notificationWorkerInitialized) {
+        console.log('[MANUAL-INIT] Workers already initialized, skipping');
         return;
     }
 
