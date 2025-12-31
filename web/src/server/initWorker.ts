@@ -8,6 +8,7 @@
 // 全局变量来跟踪初始化状态
 declare global {
     var workerInitialized: boolean | undefined;
+    var notificationWorkerInitialized: boolean | undefined;
     var initializationInProgress: boolean | undefined;
 }
 
@@ -41,39 +42,55 @@ export async function initializeWorkerAndChecker() {
             console.log('🔧 [MANUAL-INIT] Initializing worker (triggered manually)...');
             console.log('='.repeat(60));
 
-            // 初始化 Worker
-            if (!global.workerInitialized && process.env.ENABLE_WORKER_IN_NEXTJS === 'true') {
-                if (!process.env.VERCEL && !process.env.NETLIFY && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
-                    try {
-                        console.log('📦 [MANUAL-INIT] Loading integrated worker...');
-                        const { startWorker } = await import('../worker/queue-worker-integrated');
-                        startWorker();
-                        global.workerInitialized = true;
-                        console.log('✅ [MANUAL-INIT] Worker initialized');
-                    } catch (error) {
-                        console.error('❌ [MANUAL-INIT] Failed to initialize worker:', error);
+            // 默认值都为 true，除非明确设置为 false
+            const enableWorker = process.env.ENABLE_WORKER_IN_NEXTJS !== 'false';
+            const enableNotificationWorker = process.env.ENABLE_NOTIFICATION_WORKER_IN_NEXTJS !== 'false';
+            const isServerless = !!(process.env.VERCEL || process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME);
+
+            // 初始化 Queue Worker
+            if (!global.workerInitialized) {
+                if (enableWorker) {
+                    if (!isServerless) {
+                        try {
+                            console.log('📦 [MANUAL-INIT] Loading integrated worker...');
+                            const { startWorker } = await import('../worker/queue-worker-integrated');
+                            startWorker();
+                            global.workerInitialized = true;
+                            console.log('✅ [MANUAL-INIT] Worker initialized');
+                        } catch (error) {
+                            console.error('❌ [MANUAL-INIT] Failed to initialize worker:', error);
+                        }
+                    } else {
+                        console.log('⚠️  [MANUAL-INIT] Skipping worker in serverless environment');
                     }
                 } else {
-                    console.log('⚠️  [MANUAL-INIT] Skipping worker in serverless environment');
+                    console.log('ℹ️  [MANUAL-INIT] Worker disabled (ENABLE_WORKER_IN_NEXTJS set to false)');
                 }
             } else {
-                console.log('ℹ️  [MANUAL-INIT] Worker disabled (ENABLE_WORKER_IN_NEXTJS not set to true)');
+                console.log('ℹ️  [MANUAL-INIT] Worker already initialized, skipping');
             }
 
-            // 初始化 Notification Worker（如果启用）
-            if (process.env.ENABLE_NOTIFICATION_WORKER_IN_NEXTJS === 'true') {
-                if (!process.env.VERCEL && !process.env.NETLIFY && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
-                    try {
-                        console.log('📦 [MANUAL-INIT] Loading integrated notification worker...');
-                        const { startNotificationWorker } = await import('../worker/notification-worker-integrated');
-                        startNotificationWorker();
-                        console.log('✅ [MANUAL-INIT] Notification Worker initialized');
-                    } catch (error) {
-                        console.error('❌ [MANUAL-INIT] Failed to initialize notification worker:', error);
+            // 初始化 Notification Worker
+            if (!global.notificationWorkerInitialized) {
+                if (enableNotificationWorker) {
+                    if (!isServerless) {
+                        try {
+                            console.log('📦 [MANUAL-INIT] Loading integrated notification worker...');
+                            const { startNotificationWorker } = await import('../worker/notification-worker-integrated');
+                            startNotificationWorker();
+                            global.notificationWorkerInitialized = true;
+                            console.log('✅ [MANUAL-INIT] Notification Worker initialized');
+                        } catch (error) {
+                            console.error('❌ [MANUAL-INIT] Failed to initialize notification worker:', error);
+                        }
+                    } else {
+                        console.log('⚠️  [MANUAL-INIT] Skipping notification worker in serverless environment');
                     }
                 } else {
-                    console.log('⚠️  [MANUAL-INIT] Skipping notification worker in serverless environment');
+                    console.log('ℹ️  [MANUAL-INIT] Notification Worker disabled (ENABLE_NOTIFICATION_WORKER_IN_NEXTJS set to false)');
                 }
+            } else {
+                console.log('ℹ️  [MANUAL-INIT] Notification Worker already initialized, skipping');
             }
 
 
@@ -100,6 +117,7 @@ export async function initializeWorkerAndChecker() {
 export function isInitialized() {
     return {
         workerInitialized: global.workerInitialized || false,
+        notificationWorkerInitialized: global.notificationWorkerInitialized || false,
     };
 }
 
@@ -108,30 +126,45 @@ export function isInitialized() {
  */
 export async function stopWorkerAndChecker(force: boolean = false) {
     console.log('\n' + '='.repeat(60));
-    console.log('🛑 [MANUAL-STOP] Stopping worker (triggered manually)...');
+    console.log('🛑 [MANUAL-STOP] Stopping workers (triggered manually)...');
     if (force) {
         console.log('⚠️  [MANUAL-STOP] Force stop enabled');
     }
     console.log('='.repeat(60));
 
     let stoppedWorker = false;
+    let stoppedNotificationWorker = false;
 
     try {
-        // 停止 Worker
+        // 停止 Queue Worker
         if (global.workerInitialized) {
             try {
-                console.log('📦 [MANUAL-STOP] Stopping integrated worker...');
+                console.log('📦 [MANUAL-STOP] Stopping integrated queue worker...');
                 const { stopWorker } = await import('../worker/queue-worker-integrated');
                 await stopWorker(force);
                 stoppedWorker = true;
-                console.log('✅ [MANUAL-STOP] Worker stopped');
+                console.log('✅ [MANUAL-STOP] Queue Worker stopped');
             } catch (error) {
-                console.error('❌ [MANUAL-STOP] Failed to stop worker:', error);
+                console.error('❌ [MANUAL-STOP] Failed to stop queue worker:', error);
+            }
+        }
+
+        // 停止 Notification Worker
+        if (global.notificationWorkerInitialized) {
+            try {
+                console.log('📦 [MANUAL-STOP] Stopping integrated notification worker...');
+                const { stopNotificationWorker } = await import('../worker/notification-worker-integrated');
+                await stopNotificationWorker(force);
+                stoppedNotificationWorker = true;
+                console.log('✅ [MANUAL-STOP] Notification Worker stopped');
+            } catch (error) {
+                console.error('❌ [MANUAL-STOP] Failed to stop notification worker:', error);
             }
         }
 
         // 重置所有状态，确保可以重新启动
         global.workerInitialized = false;
+        global.notificationWorkerInitialized = false;
         global.initializationInProgress = false;
         initPromise = null;
 
@@ -141,11 +174,13 @@ export async function stopWorkerAndChecker(force: boolean = false) {
 
         return {
             stoppedWorker,
+            stoppedNotificationWorker,
         };
     } catch (error) {
         console.error('❌ [MANUAL-STOP] Stop error:', error);
         // 即使出错也要重置状态
         global.workerInitialized = false;
+        global.notificationWorkerInitialized = false;
         global.initializationInProgress = false;
         initPromise = null;
         throw error;
@@ -157,7 +192,9 @@ export async function stopWorkerAndChecker(force: boolean = false) {
  */
 export function getInitializationStatus() {
     const isServerless = !!(process.env.VERCEL || process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME);
-    const enableWorker = process.env.ENABLE_WORKER_IN_NEXTJS === 'true';
+    // 默认值都为 true，除非明确设置为 false
+    const enableWorker = process.env.ENABLE_WORKER_IN_NEXTJS !== 'false';
+    const enableNotificationWorker = process.env.ENABLE_NOTIFICATION_WORKER_IN_NEXTJS !== 'false';
 
     return {
         worker: {
@@ -167,16 +204,29 @@ export function getInitializationStatus() {
             message: isServerless
                 ? "Serverless 环境不支持 Worker"
                 : !enableWorker
-                    ? "Worker 未启用 (ENABLE_WORKER_IN_NEXTJS 未设置为 true)"
+                    ? "Worker 已禁用 (ENABLE_WORKER_IN_NEXTJS=false)"
                     : global.workerInitialized
                         ? "Worker 已初始化"
                         : "Worker 未初始化",
+        },
+        notificationWorker: {
+            enabled: enableNotificationWorker,
+            initialized: global.notificationWorkerInitialized || false,
+            serverless: isServerless,
+            message: isServerless
+                ? "Serverless 环境不支持 Notification Worker"
+                : !enableNotificationWorker
+                    ? "Notification Worker 已禁用 (ENABLE_NOTIFICATION_WORKER_IN_NEXTJS=false)"
+                    : global.notificationWorkerInitialized
+                        ? "Notification Worker 已初始化"
+                        : "Notification Worker 未初始化",
         },
         environment: {
             nodeEnv: process.env.NODE_ENV || 'unknown',
             isServerless,
             redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
             workerConcurrency: process.env.WORKER_CONCURRENCY || '5',
+            notificationWorkerConcurrency: process.env.NOTIFICATION_WORKER_CONCURRENCY || '10',
         },
     };
 }
