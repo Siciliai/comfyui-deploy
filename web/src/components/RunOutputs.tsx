@@ -29,7 +29,7 @@ function isImageUrl(url: string): boolean {
 function looksLikeImageUrl(url: string): boolean {
   // 先检查是否有图片扩展名
   if (isImageUrl(url)) return true;
-  
+
   // 检查是否是有效的 HTTP(S) URL
   try {
     const urlObj = new URL(url);
@@ -42,7 +42,7 @@ function looksLikeImageUrl(url: string): boolean {
 // 解析输入值，提取图片 URL
 function extractImageUrls(data: unknown): string[] {
   const urls: string[] = [];
-  
+
   // 处理数组类型（原生数组）
   if (Array.isArray(data)) {
     for (const item of data) {
@@ -54,14 +54,14 @@ function extractImageUrls(data: unknown): string[] {
     }
     return urls;
   }
-  
+
   if (typeof data === "string") {
     // 检查是否是 base64 图片
     if (data.startsWith("data:image/")) {
       urls.push(data);
       return urls;
     }
-    
+
     // 尝试解析为 JSON 数组（用于 ExternalImageBatch）
     try {
       const parsed = JSON.parse(data);
@@ -76,13 +76,13 @@ function extractImageUrls(data: unknown): string[] {
     } catch {
       // 不是 JSON，继续检查是否是单个 URL
     }
-    
+
     // 检查是否是单个图片 URL
     if (looksLikeImageUrl(data)) {
       urls.push(data);
     }
   }
-  
+
   return urls;
 }
 
@@ -142,27 +142,37 @@ export async function RunOutputs({
   if (allFiles.length === 0 && outputs && outputs.length > 0) {
     return (
       <div className="space-y-4">
-        {/* 输入图片区域 */}
-        {inputImages.length > 0 && (
-          <div>
-            <h4 className="text-sm font-medium mb-2 text-muted-foreground">Inputs</h4>
-            <div className="flex flex-wrap gap-4">
-              {inputImages.map(({ key, urls }) => (
-                <div key={key} className="space-y-1">
-                  <span className="text-xs text-muted-foreground">{key}</span>
-                  <div className="flex flex-wrap gap-2">
-                    {urls.map((url, index) => (
-                      <img
-                        key={index}
-                        className="max-w-[150px] max-h-[150px] object-contain rounded border"
-                        src={url}
-                        alt={`${key} input ${index + 1}`}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
+        {/* 输入区域 */}
+        {workflow_inputs && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-medium text-muted-foreground">Inputs</h4>
+              <ViewJsonButton
+                data={workflow_inputs}
+                title="Input JSON 数据"
+                description="查看运行输入的原始 JSON 数据"
+                buttonText="查看 JSON"
+              />
             </div>
+            {inputImages.length > 0 && (
+              <div className="flex flex-wrap gap-4">
+                {inputImages.map(({ key, urls }) => (
+                  <div key={key} className="space-y-1">
+                    <span className="text-xs text-muted-foreground">{key}</span>
+                    <div className="flex flex-wrap gap-2">
+                      {urls.map((url, index) => (
+                        <img
+                          key={index}
+                          className="max-w-[150px] max-h-[150px] object-contain rounded border"
+                          src={url}
+                          alt={`${key} input ${index + 1}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -204,27 +214,37 @@ export async function RunOutputs({
 
   return (
     <div className="space-y-4">
-      {/* 输入图片区域 */}
-      {inputImages.length > 0 && (
-        <div>
-          <h4 className="text-sm font-medium mb-2 text-muted-foreground">Inputs</h4>
-          <div className="flex flex-wrap gap-4">
-            {inputImages.map(({ key, urls }) => (
-              <div key={key} className="space-y-1">
-                <span className="text-xs text-muted-foreground">{key}</span>
-                <div className="flex flex-wrap gap-2">
-                  {urls.map((url, index) => (
-                    <img
-                      key={index}
-                      className="max-w-[150px] max-h-[150px] object-contain rounded border"
-                      src={url}
-                      alt={`${key} input ${index + 1}`}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
+      {/* 输入区域 */}
+      {workflow_inputs && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-medium text-muted-foreground">Inputs</h4>
+            <ViewJsonButton
+              data={workflow_inputs}
+              title="Input JSON 数据"
+              description="查看运行输入的原始 JSON 数据"
+              buttonText="查看 JSON"
+            />
           </div>
+          {inputImages.length > 0 && (
+            <div className="flex flex-wrap gap-4">
+              {inputImages.map(({ key, urls }) => (
+                <div key={key} className="space-y-1">
+                  <span className="text-xs text-muted-foreground">{key}</span>
+                  <div className="flex flex-wrap gap-2">
+                    {urls.map((url, index) => (
+                      <img
+                        key={index}
+                        className="max-w-[150px] max-h-[150px] object-contain rounded border"
+                        src={url}
+                        alt={`${key} input ${index + 1}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
