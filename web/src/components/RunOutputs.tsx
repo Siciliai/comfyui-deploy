@@ -8,6 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ViewJsonButton } from "@/components/ViewJsonButton";
 import { getRunsOutput } from "@/server/getRunsOutput";
 
 // 支持的图片扩展名
@@ -166,27 +167,37 @@ export async function RunOutputs({
         )}
 
         {/* 输出区域 */}
-        <Table className="table-fixed">
-          <TableHeader className="bg-background top-0 sticky">
-            <TableRow>
-              <TableHead className="w-[200px]">File</TableHead>
-              <TableHead className="">Output</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {outputs.map((run) => (
-              <TableRow key={run.id}>
-                <TableCell>Output</TableCell>
-                <TableCell className="">
-                  <CodeBlock
-                    code={JSON.stringify(run.data, null, 2)}
-                    lang="json"
-                  />
-                </TableCell>
+        <div className="space-y-2">
+          <div className="flex justify-end">
+            <ViewJsonButton
+              data={outputs.map(o => o.data)}
+              title="Output JSON 数据"
+              description="查看运行输出的原始 JSON 数据"
+              buttonText="查看 JSON"
+            />
+          </div>
+          <Table className="table-fixed">
+            <TableHeader className="bg-background top-0 sticky">
+              <TableRow>
+                <TableHead className="w-[200px]">File</TableHead>
+                <TableHead className="">Output</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {outputs.map((run) => (
+                <TableRow key={run.id}>
+                  <TableCell>Output</TableCell>
+                  <TableCell className="">
+                    <CodeBlock
+                      code={JSON.stringify(run.data, null, 2)}
+                      lang="json"
+                    />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     );
   }
@@ -218,9 +229,17 @@ export async function RunOutputs({
       )}
 
       {/* 输出区域 */}
-      {allFiles.length > 0 && (
-        <div>
-          <h4 className="text-sm font-medium mb-2 text-muted-foreground">Outputs</h4>
+      {allFiles.length > 0 && outputs && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-medium text-muted-foreground">Outputs</h4>
+            <ViewJsonButton
+              data={outputs.map(o => o.data)}
+              title="Output JSON 数据"
+              description="查看运行输出的原始 JSON 数据"
+              buttonText="查看 JSON"
+            />
+          </div>
           <Table className="table-fixed">
             <TableHeader className="bg-background top-0 sticky">
               <TableRow>

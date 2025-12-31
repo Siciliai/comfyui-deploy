@@ -6,6 +6,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ViewJsonButton } from "@/components/ViewJsonButton";
 import type { findAllRuns } from "@/server/findAllRuns";
 
 // 支持的图片扩展名
@@ -91,13 +92,22 @@ export async function RunInputs({
   return (
     <>
       {run.workflow_inputs && (
-        <Table className="table-fixed">
-          <TableHeader className="bg-background top-0 sticky">
-            <TableRow>
-              <TableHead className="w-[200px]">Input</TableHead>
-              <TableHead className="">Value</TableHead>
-            </TableRow>
-          </TableHeader>
+        <div className="space-y-2">
+          <div className="flex justify-end">
+            <ViewJsonButton
+              data={run.workflow_inputs}
+              title="Input JSON 数据"
+              description="查看运行输入的原始 JSON 数据"
+              buttonText="查看 JSON"
+            />
+          </div>
+          <Table className="table-fixed">
+            <TableHeader className="bg-background top-0 sticky">
+              <TableRow>
+                <TableHead className="w-[200px]">Input</TableHead>
+                <TableHead className="">Value</TableHead>
+              </TableRow>
+            </TableHeader>
           <TableBody>
             {Object.entries(run.workflow_inputs).map(([key, data]) => {
               const imageUrls = extractImageUrls(data);
@@ -126,6 +136,7 @@ export async function RunInputs({
             })}
           </TableBody>
         </Table>
+        </div>
       )}
     </>
   );
