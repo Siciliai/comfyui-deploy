@@ -22,20 +22,6 @@ const nextConfig = {
   experimental: {
     instrumentationHook: true,
   },
-  // 配置 webpack 忽略 bullmq 的动态 require warning
-  webpack: (config, { isServer }) => {
-    if (isServer) {
-      // 忽略 bullmq 的 child-processor 动态 require 警告
-      config.ignoreWarnings = [
-        ...(config.ignoreWarnings || []),
-        {
-          module: /node_modules\/bullmq/,
-          message: /Critical dependency/,
-        },
-      ];
-    }
-    return config;
-  },
 };
 
 export default withSearch(withMDX(nextConfig));

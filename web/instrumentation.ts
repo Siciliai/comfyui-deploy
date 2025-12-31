@@ -31,16 +31,6 @@ export async function register() {
     global.instrumentationExecuted = true;
     global.instrumentationTimestamp = new Date().toISOString();
 
-    // 检查是否在 build 阶段（build 时不应该启动 worker）
-    // NEXT_PHASE 在 build 时为 'phase-production-build'
-    const isBuildPhase = process.env.NEXT_PHASE === 'phase-production-build' ||
-        process.argv.some(arg => arg.includes('next') && arg.includes('build'));
-
-    if (isBuildPhase) {
-        console.log('[INSTRUMENTATION] Skipping worker initialization during build phase');
-        return;
-    }
-
     // 默认值都为 true，除非明确设置为 false
     const autoStart = process.env.AUTO_START_WORKERS !== 'false';
     const enableWorker = process.env.ENABLE_WORKER_IN_NEXTJS !== 'false';
