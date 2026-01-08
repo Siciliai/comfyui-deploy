@@ -67,18 +67,39 @@ function dispatchAPIEventData(data) {
 
   // Custom parse error
   if (msg.error) {
-    let message = msg.error.message;
-    if (msg.error.details) message += ": " + msg.error.details;
-    for (const [nodeID, nodeError] of Object.entries(msg.node_errors)) {
-      message += "\n" + nodeError.class_type + ":";
-      for (const errorReason of nodeError.errors) {
-        message +=
-          "\n    - " + errorReason.message + ": " + errorReason.details;
+    let message = "";
+
+    // Handle error field - could be string or object
+    if (typeof msg.error === "string") {
+      message = msg.error;
+    } else if (typeof msg.error === "object") {
+      message = msg.error.message || "";
+      if (msg.error.details) message += ": " + msg.error.details;
+      if (msg.error.type) message = `[${msg.error.type}] ${message}`;
+    }
+
+    // Handle node_errors - should be an object with nodeID keys
+    if (msg.node_errors && typeof msg.node_errors === "object" && !Array.isArray(msg.node_errors)) {
+      for (const [nodeID, nodeError] of Object.entries(msg.node_errors)) {
+        if (nodeError && nodeError.class_type) {
+          message += "\n\nNode " + nodeID + " (" + nodeError.class_type + "):";
+          if (nodeError.errors && Array.isArray(nodeError.errors)) {
+            for (const errorReason of nodeError.errors) {
+              message += "\n  - " + (errorReason.message || "Unknown error");
+              if (errorReason.details) message += ": " + errorReason.details;
+            }
+          }
+        }
       }
     }
 
-    app.ui.dialog.show(message);
-    if (msg.node_errors) {
+    // Show the error dialog with the complete message
+    if (message) {
+      console.error("ComfyUI prompt validation error:", message);
+      app.ui.dialog.show(message);
+    }
+
+    if (msg.node_errors && typeof msg.node_errors === "object" && !Array.isArray(msg.node_errors)) {
       app.lastNodeErrors = msg.node_errors;
       app.canvas.draw(true, true);
     }

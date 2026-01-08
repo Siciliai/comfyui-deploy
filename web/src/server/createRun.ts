@@ -349,12 +349,39 @@ export const createRun = withServerPromise(
           if (!_result.ok) {
             let message = `Error creating run, ${_result.statusText}`;
             try {
-              const result = await ComfyAPI_Run.parseAsync(
-                await _result.json(),
-              );
-              message += ` ${result.node_errors}`;
-              console.error(`[createRun] ❌ ComfyUI returned error:`, result);
-            } catch (error) { }
+              const responseJson = await _result.json();
+              console.error(`[createRun] ❌ ComfyUI returned error:`, JSON.stringify(responseJson, null, 2));
+
+              // Handle error field which contains validation error details
+              if (responseJson.error) {
+                const errorInfo = responseJson.error;
+                if (typeof errorInfo === 'object') {
+                  message += ` - ${errorInfo.message || ''}`;
+                  if (errorInfo.details) message += `: ${errorInfo.details}`;
+                } else {
+                  message += ` - ${errorInfo}`;
+                }
+              }
+
+              // Handle node_errors which contains per-node error details
+              if (responseJson.node_errors && typeof responseJson.node_errors === 'object') {
+                const nodeErrorEntries = Object.entries(responseJson.node_errors);
+                if (nodeErrorEntries.length > 0) {
+                  message += '\n\nNode errors:';
+                  for (const [nodeId, nodeError] of nodeErrorEntries) {
+                    const ne = nodeError as { class_type?: string; errors?: Array<{ message: string; details?: string }> };
+                    message += `\n  Node ${nodeId} (${ne.class_type || 'unknown'}):`;
+                    if (ne.errors && Array.isArray(ne.errors)) {
+                      for (const err of ne.errors) {
+                        message += `\n    - ${err.message}${err.details ? ': ' + err.details : ''}`;
+                      }
+                    }
+                  }
+                }
+              }
+            } catch (error) {
+              console.error(`[createRun] ❌ Failed to parse error response:`, error);
+            }
             throw new Error(message);
           }
           console.log(`[createRun] ✅ Request sent successfully to ComfyUI`);

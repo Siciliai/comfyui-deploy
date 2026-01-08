@@ -344,8 +344,13 @@ async def post_prompt(json_data):
             }
             return response
         else:
-            logger.info("invalid prompt:", valid[1])
-            return {"error": valid[1], "node_errors": valid[3]}
+            # Log the full error details for debugging
+            error_info = valid[1]
+            node_errors = valid[3]
+            logger.info(f"invalid prompt - error: {json.dumps(error_info, indent=2, default=str)}")
+            if node_errors:
+                logger.info(f"node_errors: {json.dumps(node_errors, indent=2, default=str)}")
+            return {"error": error_info, "node_errors": node_errors}
     else:
         return {"error": "no prompt", "node_errors": []}
 
