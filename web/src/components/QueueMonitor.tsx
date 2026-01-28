@@ -67,6 +67,7 @@ interface QueueJob {
     data: {
         deployment_id: string;
         inputs?: Record<string, string | number>;
+        retryCount?: number;
     };
     state: string;
     progress: any;
@@ -75,7 +76,9 @@ interface QueueJob {
     finishedOn: string | null;
     failedReason?: string;
     returnvalue?: any;
-    workflow_id?: string; // 添加 workflow_id 字段
+    workflow_id?: string;
+    delayedUntil?: string | null; // 预计执行时间
+    attemptsMade?: number; // BullMQ 尝试次数
 }
 
 interface QueueData {
@@ -186,7 +189,7 @@ export function QueueMonitor() {
             fetchQueueData();
             fetchWorkerStatus();
             fetchStaleJobsCheckerStatus();
-        }, 5000); // 每5秒刷新一次
+        }, 2000); // 每2秒刷新一次（更快地看到状态变化）
 
         return () => clearInterval(interval);
     }, [autoRefresh]);
@@ -869,13 +872,14 @@ export function QueueMonitor() {
                                         <TableHead>Job ID</TableHead>
                                         <TableHead>Deployment</TableHead>
                                         <TableHead>重试次数</TableHead>
+                                        <TableHead>当前状态</TableHead>
                                         <TableHead>操作</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {data.jobs.delayed.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={4} className="text-center text-muted-foreground">
+                                            <TableCell colSpan={5} className="text-center text-muted-foreground">
                                                 暂无延迟中的任务
                                             </TableCell>
                                         </TableRow>
@@ -887,7 +891,19 @@ export function QueueMonitor() {
                                                 </TableCell>
                                                 <TableCell>{job.data.deployment_id}</TableCell>
                                                 <TableCell>
-                                                    {(job.data as any).retryCount || 0}
+                                                    <Badge variant="outline">
+                                                        {job.data.retryCount || 0}/200
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant={job.state === "delayed" ? "secondary" : "default"}>
+                                                        {job.state}
+                                                    </Badge>
+                                                    {job.delayedUntil && (
+                                                        <div className="text-xs text-muted-foreground mt-1">
+                                                            下次执行: {getRelativeTime(new Date(job.delayedUntil))}
+                                                        </div>
+                                                    )}
                                                 </TableCell>
                                                 <TableCell>
                                                     <Button

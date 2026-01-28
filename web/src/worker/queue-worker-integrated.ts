@@ -94,7 +94,7 @@ export function startWorker() {
                     if (error?.needsDelayedRetry) {
                         // 增加重试计数
                         const retryCount = (job.data.retryCount || 0) + 1;
-                        const maxRetries = parseInt(process.env.MAX_QUEUE_RETRIES || "50"); // 默认最多重试50次
+                        const maxRetries = parseInt(process.env.MAX_QUEUE_RETRIES || "200"); // 默认最多重试200次
 
                         if (retryCount > maxRetries) {
                             // 超过最大重试次数，标记为失败
@@ -103,18 +103,23 @@ export function startWorker() {
                             throw new Error(`Machine "${error.machineName}" not available after ${maxRetries} retries`);
                         }
 
-                        // 计算延迟时间：随着重试次数增加，延迟时间也增加（指数退避）
-                        // 重试 1-5 次: 10 秒
-                        // 重试 6-10 次: 20 秒
-                        // 重试 11-20 次: 30 秒
-                        // 重试 21+ 次: 60 秒
+                        // 计算延迟时间：随着重试次数增加，延迟时间也增加
+                        // 总等待时间约 14 小时（支持长时间排队）
+                        // 重试 1-5 次: 10 秒 (5 × 10s = 50s)
+                        // 重试 6-10 次: 30 秒 (5 × 30s = 150s)
+                        // 重试 11-20 次: 1 分钟 (10 × 60s = 600s)
+                        // 重试 21-50 次: 3 分钟 (30 × 180s = 5400s)
+                        // 重试 51-200 次: 5 分钟 (150 × 300s = 45000s)
+                        // 总计: 50 + 150 + 600 + 5400 + 45000 = 51200s ≈ 14.2 小时
                         let delayMs = 10000; // 默认 10 秒
-                        if (retryCount > 20) {
-                            delayMs = 60000; // 1 分钟
+                        if (retryCount > 50) {
+                            delayMs = 300000; // 5 分钟
+                        } else if (retryCount > 20) {
+                            delayMs = 180000; // 3 分钟
                         } else if (retryCount > 10) {
-                            delayMs = 30000; // 30 秒
+                            delayMs = 60000; // 1 分钟
                         } else if (retryCount > 5) {
-                            delayMs = 20000; // 20 秒
+                            delayMs = 30000; // 30 秒
                         }
 
                         console.log(`⏰ [JOB ${job.id}] Machine "${error.machineName}" not available, setting delayed retry #${retryCount}/${maxRetries} (${delayMs / 1000}s)`);
@@ -128,7 +133,18 @@ export function startWorker() {
                         });
 
                         // 使用延迟时间（随重试次数增加）
-                        await job.moveToDelayed(Date.now() + delayMs, job.token);
+                        // 用 try-catch 包装，处理锁丢失的情况
+                        try {
+                            if (job.token) {
+                                await job.moveToDelayed(Date.now() + delayMs, job.token);
+                            } else {
+                                console.warn(`⚠️  [JOB ${job.id}] No job token available, will use BullMQ default retry`);
+                            }
+                        } catch (moveError: any) {
+                            // 锁丢失或其他错误，让 BullMQ 的内置重试机制处理
+                            console.warn(`⚠️  [JOB ${job.id}] moveToDelayed failed: ${moveError.message}`);
+                            console.warn(`   Will fall back to BullMQ default retry mechanism`);
+                        }
 
                         // 注意：job.moveToDelayed 不能直接修改优先级
                         // 但我们已经在 job.data 中记录了 retryCount
@@ -140,6 +156,13 @@ export function startWorker() {
             {
                 connection: redis,
                 concurrency: parseInt(process.env.WORKER_CONCURRENCY || "5"),
+                // 锁的持续时间（毫秒）
+                // 注意：这是 Worker 处理 job 期间锁的有效期，不是排队时间
+                // 排队时（waiting/delayed）不需要锁
+                // 设置为 30 分钟，BullMQ 会自动每 lockDuration/2 续锁
+                lockDuration: parseInt(process.env.WORKER_LOCK_DURATION || "1800000"), // 默认 30 分钟
+                // stalled job 检查间隔，应该大于 lockDuration
+                stalledInterval: parseInt(process.env.WORKER_STALLED_INTERVAL || "1800000"), // 默认 30 分钟
             },
         );
 

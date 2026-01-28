@@ -46,7 +46,7 @@ const worker = new Worker(
             // 这样 worker 可以继续处理其他 machine 的任务
             if (error?.needsDelayedRetry) {
                 const retryCount = (job.data.retryCount || 0) + 1;
-                const maxRetries = parseInt(process.env.MAX_QUEUE_RETRIES || "50");
+                const maxRetries = parseInt(process.env.MAX_QUEUE_RETRIES || "200"); // 默认最多重试200次
 
                 if (retryCount > maxRetries) {
                     console.error(`❌ [JOB ${job.id}] Machine "${error.machineName}" not available after ${maxRetries} retries`);
@@ -54,14 +54,22 @@ const worker = new Worker(
                     throw new Error(`Machine "${error.machineName}" not available after ${maxRetries} retries`);
                 }
 
-                // 指数退避：随着重试次数增加，延迟时间也增加
-                let delayMs = 10000;
-                if (retryCount > 20) {
-                    delayMs = 60000;
+                // 计算延迟时间：随着重试次数增加，延迟时间也增加
+                // 总等待时间约 14 小时（支持长时间排队）
+                // 重试 1-5 次: 10 秒
+                // 重试 6-10 次: 30 秒
+                // 重试 11-20 次: 1 分钟
+                // 重试 21-50 次: 3 分钟
+                // 重试 51-200 次: 5 分钟
+                let delayMs = 10000; // 默认 10 秒
+                if (retryCount > 50) {
+                    delayMs = 300000; // 5 分钟
+                } else if (retryCount > 20) {
+                    delayMs = 180000; // 3 分钟
                 } else if (retryCount > 10) {
-                    delayMs = 30000;
+                    delayMs = 60000; // 1 分钟
                 } else if (retryCount > 5) {
-                    delayMs = 20000;
+                    delayMs = 30000; // 30 秒
                 }
 
                 console.log(`⏰ [JOB ${job.id}] Machine "${error.machineName}" not available, setting delayed retry #${retryCount}/${maxRetries} (${delayMs / 1000}s)`);
@@ -73,7 +81,18 @@ const worker = new Worker(
                     retryCount: retryCount,
                 });
 
-                await job.moveToDelayed(Date.now() + delayMs, job.token);
+                // 用 try-catch 包装，处理锁丢失的情况
+                try {
+                    if (job.token) {
+                        await job.moveToDelayed(Date.now() + delayMs, job.token);
+                    } else {
+                        console.warn(`⚠️  [JOB ${job.id}] No job token available, will use BullMQ default retry`);
+                    }
+                } catch (moveError: any) {
+                    // 锁丢失或其他错误，让 BullMQ 的内置重试机制处理
+                    console.warn(`⚠️  [JOB ${job.id}] moveToDelayed failed: ${moveError.message}`);
+                    console.warn(`   Will fall back to BullMQ default retry mechanism`);
+                }
                 throw error;
             }
             throw error;
@@ -82,6 +101,13 @@ const worker = new Worker(
     {
         connection: redis,
         concurrency: parseInt(process.env.WORKER_CONCURRENCY || "5"),
+        // 锁的持续时间（毫秒）
+        // 注意：这是 Worker 处理 job 期间锁的有效期，不是排队时间
+        // 排队时（waiting/delayed）不需要锁
+        // 设置为 30 分钟，BullMQ 会自动每 lockDuration/2 续锁
+        lockDuration: parseInt(process.env.WORKER_LOCK_DURATION || "1800000"), // 默认 30 分钟
+        // stalled job 检查间隔，应该大于 lockDuration
+        stalledInterval: parseInt(process.env.WORKER_STALLED_INTERVAL || "1800000"), // 默认 30 分钟
     },
 );
 

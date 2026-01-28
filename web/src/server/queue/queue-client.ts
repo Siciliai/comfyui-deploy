@@ -186,6 +186,21 @@ export async function getQueueJobs() {
                 }
             }
 
+            // 获取 delayed job 的预计执行时间
+            let delayedUntil: string | null = null;
+            if (state === "delayed" && job.delay) {
+                // job.delay 是延迟的毫秒数，job.timestamp 是创建时间
+                // 对于 moveToDelayed，实际执行时间存储在 job 的内部属性中
+                try {
+                    const delayUntilTimestamp = await job.getDelayUntil?.() || (job.timestamp + (job.delay || 0));
+                    if (delayUntilTimestamp) {
+                        delayedUntil = new Date(delayUntilTimestamp).toISOString();
+                    }
+                } catch (e) {
+                    // 忽略错误
+                }
+            }
+
             return {
                 id: job.id,
                 name: job.name,
@@ -198,6 +213,8 @@ export async function getQueueJobs() {
                 failedReason: job.failedReason,
                 returnvalue: job.returnvalue,
                 workflow_id, // 添加 workflow_id 字段
+                delayedUntil, // 添加预计执行时间
+                attemptsMade: job.attemptsMade, // 添加尝试次数
             };
         };
 
