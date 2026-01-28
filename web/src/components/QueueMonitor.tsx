@@ -81,6 +81,22 @@ interface QueueJob {
     attemptsMade?: number; // BullMQ 尝试次数
 }
 
+interface EventDrivenRun {
+    id: string;
+    status: string;
+    queue_job_id: string | null;
+    created_at: string;
+    started_at: string | null;
+    ended_at: string | null;
+    workflow_id: string;
+}
+
+interface EventDrivenStats {
+    stats: Record<string, number>;
+    total: number;
+    recentRuns: EventDrivenRun[];
+}
+
 interface QueueData {
     status: QueueStatus;
     jobs: {
@@ -90,6 +106,8 @@ interface QueueData {
         failed: QueueJob[];
         delayed: QueueJob[];
     };
+    eventDrivenStats?: EventDrivenStats | null;
+    isEventDrivenMode?: boolean;
 }
 
 interface WorkerStatus {
@@ -381,45 +399,101 @@ export function QueueMonitor() {
 
     return (
         <div className="w-full space-y-6">
-            {/* 头部统计 */}
-            <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-                <Card>
+            {/* 事件驱动模式提示 */}
+            {data.isEventDrivenMode && (
+                <Card className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
                     <CardHeader className="pb-2">
-                        <CardDescription>等待中</CardDescription>
-                        <CardTitle className="text-3xl">{data.status.waiting}</CardTitle>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                            <Badge variant="default">事件驱动模式</Badge>
+                        </CardTitle>
+                        <CardDescription>
+                            任务在 waiting 队列中等待，由 machine 完成事件触发执行。已完成/失败的任务请查看下方的「执行记录」。
+                        </CardDescription>
                     </CardHeader>
                 </Card>
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardDescription>执行中</CardDescription>
-                        <CardTitle className="text-3xl">{data.status.active}</CardTitle>
-                    </CardHeader>
-                </Card>
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardDescription>延迟中</CardDescription>
-                        <CardTitle className="text-3xl">{data.status.delayed}</CardTitle>
-                    </CardHeader>
-                </Card>
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardDescription>已完成</CardDescription>
-                        <CardTitle className="text-3xl">{data.status.completed}</CardTitle>
-                    </CardHeader>
-                </Card>
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardDescription>失败</CardDescription>
-                        <CardTitle className="text-3xl">{data.status.failed}</CardTitle>
-                    </CardHeader>
-                </Card>
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardDescription>总计</CardDescription>
-                        <CardTitle className="text-3xl">{totalJobs}</CardTitle>
-                    </CardHeader>
-                </Card>
-            </div>
+            )}
+
+            {/* 头部统计 - 事件驱动模式 */}
+            {data.isEventDrivenMode && data.eventDrivenStats ? (
+                <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardDescription>队列等待中</CardDescription>
+                            <CardTitle className="text-3xl">{data.status.waiting}</CardTitle>
+                        </CardHeader>
+                    </Card>
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardDescription>未开始</CardDescription>
+                            <CardTitle className="text-3xl">{data.eventDrivenStats.stats["not-started"]}</CardTitle>
+                        </CardHeader>
+                    </Card>
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardDescription>执行中</CardDescription>
+                            <CardTitle className="text-3xl">{data.eventDrivenStats.stats.running}</CardTitle>
+                        </CardHeader>
+                    </Card>
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardDescription>已完成</CardDescription>
+                            <CardTitle className="text-3xl text-green-600">{data.eventDrivenStats.stats.success}</CardTitle>
+                        </CardHeader>
+                    </Card>
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardDescription>失败</CardDescription>
+                            <CardTitle className="text-3xl text-red-600">{data.eventDrivenStats.stats.failed}</CardTitle>
+                        </CardHeader>
+                    </Card>
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardDescription>24h 总计</CardDescription>
+                            <CardTitle className="text-3xl">{data.eventDrivenStats.total}</CardTitle>
+                        </CardHeader>
+                    </Card>
+                </div>
+            ) : (
+                /* 头部统计 - 传统模式 */
+                <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardDescription>等待中</CardDescription>
+                            <CardTitle className="text-3xl">{data.status.waiting}</CardTitle>
+                        </CardHeader>
+                    </Card>
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardDescription>执行中</CardDescription>
+                            <CardTitle className="text-3xl">{data.status.active}</CardTitle>
+                        </CardHeader>
+                    </Card>
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardDescription>延迟中</CardDescription>
+                            <CardTitle className="text-3xl">{data.status.delayed}</CardTitle>
+                        </CardHeader>
+                    </Card>
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardDescription>已完成</CardDescription>
+                            <CardTitle className="text-3xl">{data.status.completed}</CardTitle>
+                        </CardHeader>
+                    </Card>
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardDescription>失败</CardDescription>
+                            <CardTitle className="text-3xl">{data.status.failed}</CardTitle>
+                        </CardHeader>
+                    </Card>
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardDescription>总计</CardDescription>
+                            <CardTitle className="text-3xl">{totalJobs}</CardTitle>
+                        </CardHeader>
+                    </Card>
+                </div>
+            )}
 
             {/* Worker 状态显示 */}
             {workerStatus && (
@@ -996,6 +1070,97 @@ export function QueueMonitor() {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* 事件驱动模式 - 执行记录 */}
+            {data.isEventDrivenMode && data.eventDrivenStats && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>执行记录（最近 24 小时）</CardTitle>
+                        <CardDescription>
+                            通过队列调度执行的任务记录
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <ScrollArea className="h-[500px]">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Run ID</TableHead>
+                                        <TableHead>Job ID</TableHead>
+                                        <TableHead>状态</TableHead>
+                                        <TableHead>创建时间</TableHead>
+                                        <TableHead>开始时间</TableHead>
+                                        <TableHead>结束时间</TableHead>
+                                        <TableHead>操作</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {data.eventDrivenStats.recentRuns.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={7} className="text-center text-muted-foreground">
+                                                暂无执行记录
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        data.eventDrivenStats.recentRuns.map((run) => (
+                                            <TableRow key={run.id}>
+                                                <TableCell className="font-mono text-xs">
+                                                    {run.id.substring(0, 8)}...
+                                                </TableCell>
+                                                <TableCell className="font-mono text-xs">
+                                                    {run.queue_job_id ? run.queue_job_id.substring(0, 20) + "..." : "-"}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge
+                                                        variant={
+                                                            run.status === "success"
+                                                                ? "default"
+                                                                : run.status === "failed"
+                                                                    ? "destructive"
+                                                                    : run.status === "running"
+                                                                        ? "secondary"
+                                                                        : "outline"
+                                                        }
+                                                    >
+                                                        {run.status === "success"
+                                                            ? "成功"
+                                                            : run.status === "failed"
+                                                                ? "失败"
+                                                                : run.status === "running"
+                                                                    ? "执行中"
+                                                                    : "未开始"}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell>
+                                                    {getRelativeTime(new Date(run.created_at))}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {run.started_at
+                                                        ? getRelativeTime(new Date(run.started_at))
+                                                        : "-"}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {run.ended_at
+                                                        ? getRelativeTime(new Date(run.ended_at))
+                                                        : "-"}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <a
+                                                        href={`/workflows/${run.workflow_id}`}
+                                                        className="text-blue-600 hover:underline text-sm"
+                                                    >
+                                                        查看详情
+                                                    </a>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </ScrollArea>
+                    </CardContent>
+                </Card>
+            )}
         </div>
     );
 }

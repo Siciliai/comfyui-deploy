@@ -159,7 +159,46 @@ export async function tryProcessNextJob(machineId?: string) {
             // 执行失败，减少队列计数
             const { decrementMachineQueue } = await import("@/server/machine/updateMachineStatus");
             await decrementMachineQueue(selectedMachine.id);
-            // 不移除任务，让它留在队列中重试
+            
+            // 增加重试计数
+            const retryCount = (job.data.retryCount || 0) + 1;
+            const maxRetries = parseInt(process.env.SCHEDULER_MAX_RETRIES || "3");
+            
+            if (retryCount >= maxRetries) {
+                // 超过最大重试次数，标记为失败并删除
+                console.error(`[Scheduler] Job ${job.id} failed after ${retryCount} retries, marking as failed`);
+                
+                // 发送失败通知
+                try {
+                    const webhookUrl = process.env.WEBHOOK_NOTIFICATION_URL;
+                    if (webhookUrl) {
+                        const { enqueueNotification } = await import("@/server/notifications/notification-queue");
+                        await enqueueNotification({
+                            workflow_run_id: `scheduler-job-${job.id}`,
+                            status: "failed" as const,
+                            job_id: job.id,
+                            deployment_id: job.data.deployment_id,
+                            error: error instanceof Error ? error.message : String(error),
+                            completed_at: new Date().toISOString(),
+                            webhook_url: webhookUrl,
+                            webhook_auth_header: process.env.WEBHOOK_AUTHORIZATION_HEADER,
+                        });
+                    }
+                } catch (notifyError) {
+                    console.error(`[Scheduler] Failed to send failure notification:`, notifyError);
+                }
+                
+                await job.remove();
+                return { processed: false, reason: "max_retries_exceeded", error };
+            }
+            
+            // 更新重试计数，任务留在队列中等待下次调度
+            await job.updateData({
+                ...job.data,
+                retryCount: retryCount,
+            });
+            console.log(`[Scheduler] Job ${job.id} will retry (${retryCount}/${maxRetries})`);
+            
             return { processed: false, reason: "execution_failed", error };
         }
 
