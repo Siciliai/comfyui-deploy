@@ -35,15 +35,12 @@ export interface QueueJobData {
 }
 
 export async function addJobToQueue(data: QueueJobData) {
-    // 优先级系统：
-    // - 新任务（retryCount=0 或 undefined）: 优先级 10 (默认)
-    // - 重试任务（retryCount > 0）: 优先级 1-5 (数字越小优先级越高)
-    // 这样被延迟的任务在重新进入队列时会优先执行
-    const priority = data.retryCount ? Math.max(1, 6 - data.retryCount) : 10;
-
+    // 不使用优先级，让所有 job 公平竞争（FIFO）
+    // 这样当 machine 空闲时，waiting 队列中的下一个 job 会被处理
+    // 而不是等待被延迟的 job 重试
     return await workflowRunQueue.add("run-workflow", data, {
         jobId: `workflow-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-        priority: priority, // 设置优先级
+        // 不设置 priority，使用默认的 FIFO 顺序
     });
 }
 

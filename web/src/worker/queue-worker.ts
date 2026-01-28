@@ -54,27 +54,15 @@ const worker = new Worker(
                     throw new Error(`Machine "${error.machineName}" not available after ${maxRetries} retries`);
                 }
 
-                // 计算延迟时间：随着重试次数增加，延迟时间也增加
-                // 总等待时间约 14 小时（支持长时间排队）
-                // 重试 1-5 次: 10 秒
-                // 重试 6-10 次: 30 秒
-                // 重试 11-20 次: 1 分钟
-                // 重试 21-50 次: 3 分钟
-                // 重试 51-200 次: 5 分钟
-                let delayMs = 10000; // 默认 10 秒
-                if (retryCount > 50) {
-                    delayMs = 300000; // 5 分钟
-                } else if (retryCount > 20) {
-                    delayMs = 180000; // 3 分钟
-                } else if (retryCount > 10) {
-                    delayMs = 60000; // 1 分钟
-                } else if (retryCount > 5) {
-                    delayMs = 30000; // 30 秒
-                }
+                // 使用固定的短延迟（30 秒）
+                // 原因：
+                // 1. 大部分 job 在 waiting 队列中等待，不会被重复检查
+                // 2. 只有 Worker 并发数的 job 会同时被检查
+                // 3. 短延迟让 job 能快速响应 machine 空闲
+                const delayMs = parseInt(process.env.QUEUE_RETRY_DELAY || "30000"); // 默认 30 秒
 
                 console.log(`⏰ [JOB ${job.id}] Machine "${error.machineName}" not available, setting delayed retry #${retryCount}/${maxRetries} (${delayMs / 1000}s)`);
-                console.log(`   This job will have higher priority when retried (priority will be ${Math.max(1, 6 - retryCount)})`);
-                console.log(`   Worker will continue processing jobs for other machines`);
+                console.log(`   Worker will continue processing other jobs from the queue`);
 
                 await job.updateData({
                     ...job.data,
